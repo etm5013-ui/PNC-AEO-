@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PNC AEO Lab</title>
+<meta name="description" content="An internal PNC tool that simulates how ChatGPT, Gemini, Claude and Copilot retrieve, rank and cite information, and what that means for Answer Engine Optimization.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="lockup" href="#top" aria-label="PNC AEO Lab, home">
+      <span class="pnc" data-logo="pnc-white"></span><i></i><b>AEO <span>Lab</span></b>
+    </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#sim">Simulator</a>
+      <a href="#variability">Variability</a>
+      <a href="#how">How it works</a>
+      <a href="#playbook">Playbook</a>
+    </nav>
+    <span class="int">Internal · Illustrative</span>
+  </div>
+</header>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div>
+      <div class="eyebrow">Answer Engine Optimization</div>
+      <h1>When customers ask AI, <em>does PNC make the answer?</em></h1>
+      <p class="lead">Pick a model, a persona and an intent, then run the prompt. On the left is what the customer sees. On the right is what the model does behind the scenes: query fan-out, retrieval, ranking, synthesis and citation. Each step shows where PNC wins or drops out.</p>
+      <div class="hero-cta">
+        <a class="btn or" href="#sim">Run a prompt</a>
+        <a class="btn ghost" href="#how">How LLM retrieval works</a>
+      </div>
+      <div class="facts">
+        <div><b>4</b><span>AI models</span></div>
+        <div><b>5</b><span>PNC personas</span></div>
+        <div><b>4</b><span>Intent types</span></div>
+        <div><b>80</b><span>Simulated journeys</span></div>
+      </div>
+    </div>
+    <div class="hero-viz" id="heroViz" aria-hidden="true"></div>
+  </div>
+</section>
+
+<!-- ============ 1. SIMULATOR ============ -->
+<section class="act alt" id="sim">
+  <div class="wrap">
+    <div class="act-head">
+      <div class="act-num">1</div>
+      <div>
+        <div class="eyebrow">Prompt simulator</div>
+        <h2>One prompt. Two views of the same moment.</h2>
+        <p class="lead">Set the model, who is asking and why, then run it. Drag the orange handle to resize the customer view and the model view. Run the same settings again and the answer will shift a little, the same way real models do.</p>
+      </div>
+    </div>
+
+    <div class="ctl" id="ctl">
+      <div class="ctl-row">
+        <div class="dd" id="dd-model"></div>
+        <div class="dd" id="dd-persona"></div>
+        <div class="dd" id="dd-intent"></div>
+        <div class="runbox">
+          <button class="btn or" id="runBtn">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg>
+            Run prompt
+          </button>
+          <button class="btn line sm" id="againBtn" title="Same settings, new sample" disabled>↻ Run again</button>
+        </div>
+      </div>
+      <div class="prompt-bar"><span class="pk">Prompt</span><q id="promptText"></q><span class="ptype" id="promptType"></span></div>
+      <div class="ctl-sub">
+        <div class="pers" id="persLine"></div>
+        <div style="display:flex;gap:10px;align-items:center">Speed <div class="seg" id="speedSeg"><button data-s="1">1×</button><button data-s="2" class="on">2×</button><button data-s="6">Fast</button></div></div>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="mtabs" id="mtabs"><button data-mode="cust" class="on">What the customer sees</button><button data-mode="tech">What the model does</button></div>
+      <div class="split" id="split" data-mode="cust">
+        <div class="pane cust">
+          <div class="pane-h"><span class="dot"></span>What the customer sees<span class="sub" id="custSub"></span></div>
+          <div class="device" id="device">
+            <div class="chat-top" id="chatTop"></div>
+            <div class="chat-body" id="chatBody"></div>
+            <div class="chat-in" id="chatIn"><span>Ask anything</span><i></i></div>
+            <div class="empty" id="custEmpty"><div><div class="big" id="emptyLogo"></div><b>Ready when you are</b><p>Choose a model, persona and intent above, then press <strong>Run prompt</strong>.</p></div></div>
+          </div>
+        </div>
+        <div class="divider" id="divider"><div class="bar"></div><button class="knob" id="knob" aria-label="Drag to resize panes">⇔</button></div>
+        <div class="pane tech">
+          <div class="pane-h"><span class="dot"></span>What the model does<span class="sub" id="techSub"></span></div>
+          <div class="rail" id="rail"></div>
+          <div class="tech-body" id="techBody">
+            <div class="empty"><div><div class="big"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h6" stroke="#8DC8E8" stroke-width="2.2" stroke-linecap="round" fill="none"/><circle cx="18" cy="16" r="3.2" stroke="#EF6A00" stroke-width="2.2" fill="none"/></svg></div><b style="color:#fff">The pipeline appears here</b><p>Understand, fan out, retrieve, rank, synthesize and render, step by step, with the AEO lever at each stage.</p></div></div>
+          </div>
+          <div class="con"><div class="con-h"><span class="live" id="liveDot"></span>Retrieval log<span class="s" id="conS">idle</span></div><div class="con-b" id="conB"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="score" id="score"></div>
+  </div>
+</section>
+
+<!-- ============ 2. VARIABILITY ============ -->
+<section class="act" id="variability">
+  <div class="wrap">
+    <div class="act-head">
+      <div class="act-num">2</div>
+      <div>
+        <div class="eyebrow">Variability</div>
+        <h2>Same question, different answer, depending on who asks, why, and where.</h2>
+        <p class="lead">AI answers are probabilistic. Each cell below runs the simulation 20 times and shows how often PNC is named. Click any cell to load that journey into the simulator.</p>
+      </div>
+    </div>
+    <div class="var-grid">
+      <div class="card">
+        <h3>PNC mention rate by persona and intent</h3>
+        <p class="sub">Share of 20 sampled runs where PNC appears in the answer.</p>
+        <div class="mtab" id="heatTabs"></div>
+        <div class="heat" id="heat"></div>
+        <div class="scale" id="heatScale"></div>
+      </div>
+      <div class="card">
+        <h3 id="cmpTitle">Across models</h3>
+        <p class="sub" id="cmpSub"></p>
+        <div id="cmp"></div>
+        <div class="insight" id="cmpInsight"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3. HOW IT WORKS ============ -->
+<section class="act dark" id="how">
+  <div class="wrap">
+    <div class="act-head">
+      <div class="act-num">3</div>
+      <div>
+        <div class="eyebrow" style="color:#ffb27a">How LLM retrieval works</div>
+        <h2>Six steps between a prompt and a PNC mention</h2>
+        <p class="lead">Answer engines don’t rank pages the way search does. They break a prompt into many searches, read a small set of passages, and decide which brands the evidence supports. Each step has its own failure mode and its own AEO lever.</p>
+      </div>
+    </div>
+    <div class="flow6" id="flow6"></div>
+    <div class="models4" id="models4"></div>
+  </div>
+</section>
+
+<!-- ============ 4. PLAYBOOK ============ -->
+<section class="act alt" id="playbook">
+  <div class="wrap">
+    <div class="act-head">
+      <div class="act-num">4</div>
+      <div>
+        <div class="eyebrow">AEO playbook for PNC</div>
+        <h2>Four levers that move PNC into the answer</h2>
+        <p class="lead">Each recommendation in the simulator maps to one of these levers. Most visibility gaps come from a few patterns: pages models can’t read, facts they can’t extract, and third-party sources that don’t mention PNC.</p>
+      </div>
+    </div>
+    <div class="levers">
+      <div class="lvr c1"><div class="k">Content</div><h3>Be the extractable answer</h3><ul>
+        <li>Open with a 40 to 60 word direct answer, then the details.</li>
+        <li>Write in the persona’s words (“no surprise fees,” “first paycheck”), not only product names.</li>
+        <li>Publish fair head-to-heads and worked examples (FHA vs. Community Loan at 5% down).</li>
+        <li>One hub page per journey (first-time buyer, first job, growing wealth).</li></ul></div>
+      <div class="lvr c2"><div class="k">Technical</div><h3>Be readable by every retriever</h3><ul>
+        <li>Server-render rates, fees, benefit tables and tools. Most AI fetchers don’t run JavaScript.</li>
+        <li>Allow OAI-SearchBot, Claude-SearchBot, Bingbot and Googlebot. Decide on training bots separately.</li>
+        <li>Use FAQPage, FinancialProduct, Offer and LocalBusiness schema with dateModified.</li>
+        <li>Push changes with IndexNow (Bing/Copilot) and keep sitemaps fresh.</li></ul></div>
+      <div class="lvr c3"><div class="k">Off-site</div><h3>Be in the sources models trust</h3><ul>
+        <li>Publisher roundups (NerdWallet, Bankrate, Forbes Advisor, CNBC Select) set most shortlists.</li>
+        <li>Authentic presence in Reddit and YouTube communities, especially for ChatGPT and Gemini.</li>
+        <li>Complete Google Business Profile and Bing Places listings for branches, loan officers and advisors.</li>
+        <li>Expert quotes from PNC leaders inside authority content.</li></ul></div>
+      <div class="lvr c4"><div class="k">Measurement</div><h3>Track the answer, not just the click</h3><ul>
+        <li>Run a fixed prompt panel by persona × intent × model every month.</li>
+        <li>Score mention rate, position, citation share and factual accuracy of PNC facts.</li>
+        <li>Segment AI referrers (chatgpt.com, gemini.google.com, copilot.microsoft.com, claude.ai) in analytics.</li>
+        <li>Route inaccurate answers to Product and Compliance owners.</li></ul></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><b>Mention rate</b><span>Share of sampled answers that name PNC, by persona, intent and model.</span></div>
+      <div class="kpi"><b>Answer position</b><span>Where PNC appears among the brands named. Being #1 in a shortlist drives action.</span></div>
+      <div class="kpi"><b>Citation share</b><span>Share of citations that point to pnc.com, compared with publishers and competitors.</span></div>
+      <div class="kpi"><b>Fact accuracy</b><span>Are fees, rates, eligibility and offers about PNC stated correctly? This is a compliance KPI.</span></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span class="pnc" data-logo="pnc-white"></span>
+    <div>
+      <p><strong style="color:#fff">For internal use only. Simulated and illustrative.</strong> Responses, sources and scores are generated by a simplified model of LLM retrieval. They are not live output from ChatGPT, Gemini, Claude or Copilot. Model behaviors reflect public documentation and commonly observed patterns, and change frequently.</p>
+      <p>PNC product names and features are shown for illustration and must be validated with Product, Legal and Compliance before any external use. Third-party names and logos are trademarks of their respective owners and are used here for identification only.</p>
+    </div>
+  </div>
+</footer>
+
+<div class="tt" id="tt" role="tooltip"></div>
+
+<script src="assets/logos.js"></script>
+<script src="assets/data.js"></script>
+<script src="assets/engine.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
