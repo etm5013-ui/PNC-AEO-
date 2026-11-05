@@ -24,6 +24,7 @@
       <a href="#how">How it works</a>
       <a href="#playbook">Playbook</a>
     </nav>
+    <div class="modes"><button class="mode-b" data-open="pres"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="3" width="16" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 14v3M6.5 17h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Presentation</button><button class="mode-b" data-open="vs"><b>VS</b>VS mode</button></div>
     <span class="int">Internal · Illustrative</span>
   </div>
 </header>
@@ -36,7 +37,8 @@
       <p class="lead">Pick a model, a product topic, a persona and an intent, then run the prompt. On the left is what the customer sees. On the right is what the model does behind the scenes: query fan-out, retrieval, ranking, synthesis and citation. Each step shows where PNC wins or drops out, and how schema, persona-targeted content and third-party presence change the result.</p>
       <div class="hero-cta">
         <a class="btn or" href="#sim">Run a prompt</a>
-        <a class="btn ghost" href="#how">How LLM retrieval works</a>
+        <button class="btn ghost" data-open="pres">Presentation mode</button>
+        <button class="btn ghost" data-open="vs">VS mode</button>
       </div>
       <div class="facts">
         <div><b>5</b><span>AI models</span></div>
@@ -68,7 +70,7 @@
         <div class="dd" id="dd-persona"></div>
         <div class="dd" id="dd-intent"></div>
       </div>
-      <div class="levers" id="levers"></div>
+      <div class="levers levers-host" id="levers"></div>
       <div class="prompt-row">
       <div class="prompt-bar"><span class="pk">Prompt</span><q id="promptText"></q><span class="ptype" id="promptType"></span></div>
         <div class="runbox">
@@ -81,7 +83,7 @@
       </div>
       <div class="ctl-sub">
         <div class="pers" id="persLine"></div>
-        <div style="display:flex;gap:10px;align-items:center">Speed <div class="seg" id="speedSeg"><button data-s="1">1×</button><button data-s="2" class="on">2×</button><button data-s="6">Fast</button></div></div>
+        <div class="spd">Speed <div class="seg" id="speedSeg"><button data-s="0.5">0.5×</button><button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="6">Fast</button><button data-s="step" data-tt="Pause after each retrieval step and click Next step to continue">Step by step</button></div></div>
       </div>
     </div>
 
@@ -99,7 +101,7 @@
         </div>
         <div class="divider" id="divider"><div class="bar"></div><button class="knob" id="knob" aria-label="Drag to resize panes">⇔</button></div>
         <div class="pane tech">
-          <div class="pane-h"><span class="dot"></span>What the model does<span class="sub" id="techSub"></span></div>
+          <div class="pane-h"><span class="dot"></span>What the model does<span class="sub" id="techSub"></span><button class="nextstep" id="nextStep" hidden>Next step →</button></div>
           <div class="rail" id="rail"></div>
           <div class="tech-body" id="techBody">
             <div class="empty"><div><div class="big"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h6" stroke="#8DC8E8" stroke-width="2.2" stroke-linecap="round" fill="none"/><circle cx="18" cy="16" r="3.2" stroke="#EF6A00" stroke-width="2.2" fill="none"/></svg></div><b style="color:#fff">The pipeline appears here</b><p>Understand, fan out, retrieve, rank, extract, synthesize and render, step by step, with the AEO lever at each stage.</p></div></div>
@@ -119,9 +121,9 @@
     <div class="act-head">
       <div class="act-num">2</div>
       <div>
-        <div class="eyebrow" style="color:#ffb27a">Page-level schema · rolling out this month</div>
+        <div class="eyebrow" style="color:#ffb27a">Page-level schema</div>
         <h2>Inside a pnc.com page: what the model actually reads</h2>
-        <p class="lead">Customers see the rendered page. AI crawlers see raw HTML, and some can’t run JavaScript at all. JSON-LD schema sits in the static HTML, so every model can read it as labeled facts: product, fees, features, audience, FAQ and last-updated date. Switch between before and after rollout to compare.</p>
+        <p class="lead">Customers see the rendered page. AI crawlers see raw HTML, and some can’t run JavaScript at all. JSON-LD schema sits in the static HTML, so every model can read it as labeled facts: product, fees, features, audience, FAQ and last-updated date. Switch schema off and on to compare.</p>
       </div>
     </div>
     <div class="sl-tabs" id="slTabs"></div>
@@ -233,6 +235,35 @@
   </div>
 </footer>
 
+<!-- ============ PRESENTATION MODE ============ -->
+<div class="pres" id="pres" hidden role="dialog" aria-modal="true" aria-label="Presentation mode">
+  <div class="pr-top">
+    <span class="pnc" data-logo="pnc-white"></span><span class="pr-title"><b>AEO Lab</b><small>Presentation mode</small></span>
+    <div class="pr-steps" id="prSteps"></div>
+    <button class="pr-exit" id="prExit">Exit ✕</button>
+  </div>
+  <div class="pr-main" id="prMain"></div>
+  <div class="pr-foot"><button class="btn line" id="prBack">← Back</button><span class="pr-keys">Use ← → keys to move</span><button class="btn or pr-go" id="prNext">Next →</button></div>
+</div>
+
+<!-- ============ VS MODE ============ -->
+<div class="vsm" id="vs" hidden role="dialog" aria-modal="true" aria-label="VS mode">
+  <div class="pr-top">
+    <span class="pnc" data-logo="pnc-white"></span><span class="pr-title"><b>AEO Lab</b><small>VS mode</small></span>
+    <span class="vs-intro">Run the same topic and intent through two models or personas, side by side.</span>
+    <button class="pr-exit" id="vsExit">Exit ✕</button>
+  </div>
+  <div class="vs-body">
+    <div class="vs-cfg">
+      <div class="vs-shared" id="vsShared"></div>
+      <div class="vs-sides"><div class="vs-side" id="vsCfg-a"></div><div class="vs-vs">VS</div><div class="vs-side" id="vsCfg-b"></div></div>
+      <div class="levers levers-host vs-lv"></div>
+      <div class="vs-runrow"><span id="vsNote"></span><button class="btn or" id="vsRun">▶ Run both</button></div>
+    </div>
+    <div id="vsOut"></div>
+  </div>
+</div>
+
 <div class="peek-m" id="peek" role="dialog" aria-modal="true" aria-label="What the model read on this page"><div class="pk-in"></div></div>
 
 <div class="tt" id="tt" role="tooltip"></div>
@@ -240,6 +271,8 @@
 <script src="assets/logos.js"></script>
 <script src="assets/data.js"></script>
 <script src="assets/engine.js"></script>
+<script src="assets/avatars.js"></script>
+<script src="assets/favicons.js"></script>
 <script src="assets/app.js"></script>
 </body>
 </html>

@@ -614,7 +614,7 @@ cards: {
 
 /* ---------- AEO levers (what-if toggles) ---------- */
 const LEVERS = {
-  schema:  { n: 'Page-level schema', on: 'Rolled out', off: 'Before rollout', d: 'JSON-LD on pnc.com product and guide pages (FinancialProduct, FAQPage, audience, dateModified).' },
+  schema:  { n: 'Page-level schema', on: 'With schema', off: 'Without schema', d: 'JSON-LD on pnc.com product and guide pages (FinancialProduct, FAQPage, audience, dateModified).' },
   persona: { n: 'Persona-targeted content', on: 'Persona pages live', off: 'General SEO article only', d: 'A pnc.com guide written for this persona’s situation, alongside the general SEO article.' },
   third:   { n: 'Third-party & social presence', on: 'After outreach', off: 'Current coverage', d: 'PNC placements on affiliate roundups and authentic participation in Reddit and YouTube communities.' }
 };
