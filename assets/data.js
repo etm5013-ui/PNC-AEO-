@@ -1,971 +1,631 @@
 /* =====================================================================
-   PNC AEO Lab: scenario data
+   PNC AEO Lab: data
    ---------------------------------------------------------------------
+   Built by PNC's Digital Organic Growth Team (SEO | AEO | Organic Content).
    Everything here is ILLUSTRATIVE. Model behaviors are simplified from
    public documentation and observed patterns; product details must be
    validated with PNC Product, Legal and Compliance before external use.
+
+   A journey = Topic × Persona × Intent (5 × 6 × 4 = 120), run on one of
+   5 models. Scenarios are assembled from the building blocks below by
+   buildScenario() in engine.js.
    ===================================================================== */
 
-/* ---------- Brands that can appear in answers ----------
-   prior = how "known" the brand is in a model's training data (parametric
-   memory). Big national brands get named even when no source is retrieved. */
-const BRANDS = {
-  pnc:      { n: 'PNC',              prior: .50, c: '#EF6A00' },
-  chase:    { n: 'Chase',            prior: .95 },
-  boa:      { n: 'Bank of America',  prior: .90 },
-  wf:       { n: 'Wells Fargo',      prior: .82 },
-  capone:   { n: 'Capital One',      prior: .85 },
-  citi:     { n: 'Citi',             prior: .72 },
-  ally:     { n: 'Ally',             prior: .70 },
-  sofi:     { n: 'SoFi',             prior: .62 },
-  discover: { n: 'Discover',         prior: .66 },
-  rocket:   { n: 'Rocket Mortgage',  prior: .80 },
-  fidelity: { n: 'Fidelity',         prior: .82 },
-  schwab:   { n: 'Charles Schwab',   prior: .78 },
-  usbank:   { n: 'U.S. Bank',        prior: .55 }
+const TEAM = {
+  name: 'Digital Organic Growth Team',
+  sub: 'SEO | AEO | Organic Content',
+  managers: ['Dimi Simovski', 'Eric Mayhue'],
+  members: ['Ray Judy', 'Brianca Hadnot', 'Joe Shepker', 'Alyssa Pugsley', 'Martha Summers', 'Laura Rupert']
 };
 
-/* ---------- Source types (chart categories, fixed order) ---------- */
+/* ---------- Brands ----------
+   prior = how "known" the brand is in training data (parametric memory) */
+const BRANDS = {
+  pnc:      { n: 'PNC',              prior: .50, dom: 'pnc.com' },
+  chase:    { n: 'Chase',            prior: .95, dom: 'chase.com' },
+  boa:      { n: 'Bank of America',  prior: .90, dom: 'bankofamerica.com' },
+  wf:       { n: 'Wells Fargo',      prior: .82, dom: 'wellsfargo.com' },
+  capone:   { n: 'Capital One',      prior: .85, dom: 'capitalone.com' },
+  citi:     { n: 'Citi',             prior: .72, dom: 'citi.com' },
+  ally:     { n: 'Ally',             prior: .70, dom: 'ally.com' },
+  discover: { n: 'Discover',         prior: .66, dom: 'discover.com' },
+  rocket:   { n: 'Rocket Mortgage',  prior: .80, dom: 'rocketmortgage.com' },
+  fidelity: { n: 'Fidelity',         prior: .82, dom: 'fidelity.com' },
+  schwab:   { n: 'Charles Schwab',   prior: .78, dom: 'schwab.com' },
+  usbank:   { n: 'U.S. Bank',        prior: .55, dom: 'usbank.com' },
+  amex:     { n: 'American Express', prior: .90, dom: 'americanexpress.com' },
+  bluevine: { n: 'Bluevine',         prior: .45, dom: 'bluevine.com' }
+};
+
+/* ---------- Source types (chart categories, fixed order; palette validated for CVD) ---------- */
 const SRC_TYPES = {
-  owned:      { n: 'PNC-owned',            c: '#EF6A00' },
-  publisher:  { n: 'Publishers & reviews', c: '#2A6AB0' },
+  owned:      { n: 'PNC first-party',      c: '#EF6A00' },
+  affiliate:  { n: 'Affiliates & publishers', c: '#2A6AB0' },
   authority:  { n: 'Gov & authority',      c: '#1E9E8A' },
-  ugc:        { n: 'Community & video',    c: '#8A5CC2' },
-  competitor: { n: 'Competitor sites',     c: '#C2416B' }
+  social:     { n: 'Reddit, YouTube & social', c: '#8A5CC2' },
+  competitor: { n: 'Competitor first-party', c: '#C2416B' }
 };
 
 /* ---------- Models ----------
-   w      = how strongly the model's retrieval favors each source type
-   fan    = typical number of fan-out queries
-   k      = number of sources typically cited
-   param  = reliance on parametric memory (training data) vs live retrieval
-   renders= whether its crawler/fetcher reliably executes JavaScript
-   fresh  = how hard stale content is penalized (1 = normal)            */
+   w       how strongly retrieval favors each source type
+   aff/soc how much brand mentions on affiliate / social pages count toward a brand
+   fp      how much a brand's own (first-party) pages count toward that brand
+   schema  lift from structured data (JSON-LD) on first-party pages
+   seo     dependence on traditional organic ranking (1 = only page-one results)
+   param   reliance on training-data memory; mem = uses persona memory     */
 const MODELS = {
   chatgpt: {
     name: 'ChatGPT', maker: 'OpenAI', ver: 'GPT-5 with search',
     index: 'Bing index + OpenAI search index',
     bots: ['OAI-SearchBot', 'ChatGPT-User', 'GPTBot (training)'],
-    fan: 7, k: 6, param: .32, renders: false, fresh: 1.1,
-    w: { owned: .95, publisher: 1.18, authority: .95, ugc: 1.32, competitor: .9 },
-    qpref: ['entity', 'commercial', 'community', 'explainer', 'compare', 'freshness', 'trust', 'local', 'howto'],
+    fan: 7, k: 6, param: .32, renders: false, mem: true,
+    w: { owned: 1.05, affiliate: 1.2, authority: .95, social: 1.3, competitor: .9 },
+    aff: 1.3, soc: 1.3, fp: 1.1, schema: .18, seo: .35,
+    qpref: ['persona', 'entity', 'commercial', 'community', 'compare', 'explainer', 'freshness', 'trust', 'local', 'howto'],
     memory: 'Memory',
     style: 'Conversational, skimmable headings, inline source pills, ends with an offer to go deeper.',
-    lever: 'Allow OAI-SearchBot in robots.txt, make sure Bing indexes your key pages, and earn mentions in Reddit threads and the publisher roundups ChatGPT cites most.',
-    tip: 'Leans hardest on publishers and Reddit. Cites roughly 5 to 8 sources and favors pages that answer in the first paragraph.'
+    lever: 'Earn placement in the affiliate roundups and Reddit threads ChatGPT leans on most. Allow OAI-SearchBot and make sure Bing indexes key pages.',
+    tip: 'weights affiliate roundups and Reddit more heavily than any other model, so PNC’s presence on those pages decides the shortlist.'
   },
   gemini: {
     name: 'Gemini', maker: 'Google', ver: '3 Pro · Google Search grounding',
     index: 'Google Search index + Knowledge Graph',
     bots: ['Googlebot', 'Google-Extended (training control)'],
-    fan: 9, k: 7, param: .22, renders: true, fresh: 1.35,
-    w: { owned: 1.18, publisher: 1.0, authority: 1.05, ugc: 1.08, competitor: 1.05 },
-    qpref: ['explainer', 'entity', 'local', 'compare', 'commercial', 'freshness', 'howto', 'trust', 'community'],
+    fan: 9, k: 7, param: .22, renders: true, mem: true,
+    w: { owned: 1.15, affiliate: 1.05, authority: 1.05, social: 1.15, competitor: 1.05 },
+    aff: 1.05, soc: 1.15, fp: 1.1, schema: .32, seo: .6,
+    qpref: ['explainer', 'persona', 'entity', 'local', 'compare', 'commercial', 'freshness', 'community', 'howto', 'trust'],
     memory: 'Personal context',
-    style: 'Structured: bold headers, tables, "things to consider", then source chips.',
-    lever: 'Classic Google SEO still applies. Add structured data (FAQPage, FinancialProduct), keep Google Business Profiles complete for local intent, and publish YouTube explainers.',
-    tip: 'Fans out to the most queries, uses Google’s rendered index (so JavaScript pages count), and weights local and freshness signals.'
+    style: 'Structured: bold headers, tables, “things to consider,” then source chips.',
+    lever: 'Classic Google SEO plus structured data. Gemini reads JSON-LD and the Knowledge Graph closely, weights YouTube, and pulls local intent from Google Business Profiles.',
+    tip: 'fans out to the most queries, renders JavaScript through Google’s index, and gets a big lift from schema markup.'
+  },
+  aio: {
+    name: 'AI Overviews', maker: 'Google Search', ver: 'in Google Search results',
+    index: 'Google Search index · page-one organic results',
+    bots: ['Googlebot'],
+    fan: 4, k: 5, param: .12, renders: true, mem: false,
+    w: { owned: 1.1, affiliate: 1.1, authority: 1.0, social: 1.1, competitor: 1.05 },
+    aff: 1.15, soc: 1.15, fp: 1.1, schema: .35, seo: 1.0,
+    qpref: ['commercial', 'explainer', 'entity', 'compare', 'local', 'howto', 'freshness', 'community', 'trust', 'persona'],
+    memory: 'None (logged-out search)',
+    style: 'A short summary above the organic results, with source cards. Citations come mostly from page-one rankings.',
+    lever: 'SEO is the price of entry. AI Overviews cite pages that already rank on page one, so technical SEO, links, and schema-rich pages still decide visibility.',
+    tip: 'cites almost entirely from pages that already rank on page one, so organic SEO strength matters most here.'
   },
   claude: {
     name: 'Claude', maker: 'Anthropic', ver: 'Opus with web search',
     index: 'Third-party web search (Brave) + live page fetch',
     bots: ['Claude-SearchBot', 'Claude-User', 'ClaudeBot (training)'],
-    fan: 4, k: 5, param: .42, renders: false, fresh: 1.0,
-    w: { owned: 1.05, publisher: 1.05, authority: 1.38, ugc: .72, competitor: .95 },
-    qpref: ['explainer', 'trust', 'compare', 'entity', 'commercial', 'howto', 'freshness', 'local', 'community'],
+    fan: 4, k: 5, param: .42, renders: false, mem: true,
+    w: { owned: 1.08, affiliate: .95, authority: 1.38, social: .7, competitor: .95 },
+    aff: .8, soc: .65, fp: 1.0, schema: .12, seo: .3,
+    qpref: ['explainer', 'trust', 'compare', 'persona', 'entity', 'commercial', 'howto', 'freshness', 'local', 'community'],
     memory: 'Memory',
     style: 'Measured prose with caveats and numbered citations. Fewer, more authoritative sources.',
-    lever: 'Be the authoritative primary source. Use clear, factual, server-rendered pages with dates and disclosures, cited by .gov and educational sources. Allow Claude-SearchBot.',
-    tip: 'Runs fewer, broader searches, favors authoritative and primary sources, and relies more on what it already knows.'
+    lever: 'Be the authoritative primary source: clear, factual, server-rendered pages with dates and disclosures, ideally cited by .gov and educational sources. Allow Claude-SearchBot.',
+    tip: 'runs fewer searches, favors authoritative and first-party sources, and discounts Reddit and affiliate lists.'
   },
   copilot: {
     name: 'Copilot', maker: 'Microsoft', ver: 'Copilot with Bing grounding',
     index: 'Bing index (IndexNow-aware)',
     bots: ['Bingbot'],
-    fan: 5, k: 5, param: .28, renders: false, fresh: 1.3,
-    w: { owned: 1.22, publisher: 1.1, authority: .95, ugc: .85, competitor: 1.15 },
-    qpref: ['entity', 'commercial', 'freshness', 'compare', 'howto', 'local', 'explainer', 'trust', 'community'],
+    fan: 5, k: 5, param: .28, renders: false, mem: true,
+    w: { owned: 1.2, affiliate: 1.1, authority: .95, social: .85, competitor: 1.15 },
+    aff: 1.0, soc: .8, fp: 1.05, schema: .25, seo: .5,
+    qpref: ['entity', 'commercial', 'freshness', 'compare', 'persona', 'howto', 'local', 'explainer', 'trust', 'community'],
     memory: 'Personalization',
-    style: 'Concise, numbered superscript citations, a "Learn more" list and suggested follow-ups.',
-    lever: 'Be in Bing. Verify in Bing Webmaster Tools, push updates with IndexNow, and keep product pages fresh. Copilot is the most willing to cite brand sites directly.',
-    tip: 'Grounded on Bing and quick to cite brand and product pages, especially fresh ones.'
+    style: 'Concise, numbered superscript citations, a “Learn more” list and suggested follow-ups.',
+    lever: 'Be in Bing: verify in Bing Webmaster Tools, push updates with IndexNow, and keep product pages and their schema fresh. Copilot is the most willing to cite brand sites directly.',
+    tip: 'is grounded on Bing and quick to cite brand product pages, so first-party content and schema count most.'
   }
 };
 
 /* ---------- Personas ---------- */
 const PERSONAS = {
-  general: {
-    name: 'General / none specified', short: 'General', who: 'Anonymous user', av: '?',
-    city: 'Pittsburgh, PA',
-    mem: [],
-    blurb: 'No memory or context. The model only has the prompt, so it falls back on generic, national answers.'
-  },
-  student: {
-    name: 'College Student', short: 'Student', who: 'Maya, 19 · sophomore at Penn State', av: 'M',
-    city: 'State College, PA',
+  general: { name: 'General / none specified', short: 'General', who: 'Anonymous user', av: '?', city: 'Pittsburgh, PA', aud: '', mem: [],
+    blurb: 'No memory or context. The model only has the prompt, so it falls back on generic, national answers.' },
+  student: { name: 'College Student', short: 'Student', who: 'Maya, 19 · sophomore at Penn State', av: 'M', city: 'State College, PA', aud: 'college students',
     mem: ['Is a sophomore at Penn State', 'Works part-time, about $1,200/mo', 'Parents bank with PNC'],
-    blurb: 'Low balances, irregular income, first account of her own. She cares about no fees, a good app, and not getting hit with overdrafts.'
-  },
-  starter: {
-    name: 'The Starter', short: 'Starter', who: 'Jordan, 23 · first salaried job', av: 'J',
-    city: 'Pittsburgh, PA',
+    blurb: 'Low balances, irregular income, first account of her own. Cares about no fees, a good app and avoiding overdrafts.' },
+  starter: { name: 'The Starter', short: 'Starter', who: 'Jordan, 23 · first salaried job', av: 'J', city: 'Pittsburgh, PA', aud: 'people starting their first job',
     mem: ['Started first full-time job in July', 'Paying off $28k in student loans', 'Just signed a lease in Pittsburgh'],
-    blurb: 'First paycheck, first lease, first real credit decisions. Wants to build credit, start saving, and not mess it up.'
-  },
-  fthb: {
-    name: 'First-Time Home Buyer', short: 'Home buyer', who: 'Sam & Riley, 31 · renting in Columbus', av: 'S',
-    city: 'Columbus, OH',
-    mem: ['Renting in Columbus, OH', 'Household income about $115k', 'Saving for a first home in the next year'],
-    blurb: 'A big, emotional, multi-month decision. They want down-payment help, a lender they trust, and to understand the process.'
-  },
-  ema: {
-    name: 'Emerging Mass Affluent', short: 'Emerging affluent', who: 'Priya, 38 · director in Philadelphia', av: 'P',
-    city: 'Philadelphia, PA',
+    blurb: 'First paycheck, first lease, first real credit decisions. Wants to build credit, start saving and not mess it up.' },
+  fthb: { name: 'First-Time Home Buyer', short: 'Home buyer', who: 'Sam & Riley, 31 · renting in Columbus', av: 'S', city: 'Columbus, OH', aud: 'first-time home buyers',
+    mem: ['Renting in Columbus, OH', 'Household income about $115k', 'Plans to buy a first home within a year'],
+    blurb: 'A big, emotional, multi-month decision. Wants down payment help, a lender they trust and to understand the process.' },
+  ema: { name: 'Emerging Mass Affluent', short: 'Emerging affluent', who: 'Priya, 38 · director in Philadelphia', av: 'P', city: 'Philadelphia, PA', aud: 'high earners',
     mem: ['Director-level role in Philadelphia', 'About $180k in savings and investments', 'Has a 401(k) and RSUs'],
-    blurb: 'Growing income and complexity. Wants relationship pricing, premium perks, and a path to advice without “private bank” minimums.'
-  }
+    blurb: 'Growing income and complexity. Wants relationship pricing, premium perks and a path to advice without private-bank minimums.' },
+  smb: { name: 'Small Business Owner', short: 'Small business', who: 'Dana, 44 · owns an HVAC company in Cleveland', av: 'D', city: 'Cleveland, OH', aud: 'small business owners',
+    mem: ['Owns a 14-employee HVAC company', 'About $2.4M in annual revenue', 'Uses QuickBooks for accounting'],
+    blurb: 'Runs payroll, vendors and cash flow while doing the actual work. Wants a banker who knows small business, tools that save time and access to credit.' }
 };
+const PERSONA_ORDER = ['general', 'student', 'starter', 'fthb', 'ema', 'smb'];
 
 /* ---------- Intents ---------- */
 const INTENTS = {
-  info:    { name: 'Information gathering',        short: 'Learn',     fmt: 'explainer', d: 'The user wants to understand a topic. Brands are incidental, and the model mostly cites explainers and authorities.' },
-  rec:     { name: 'Looking for recommendations',  short: 'Recommend', fmt: 'shortlist', d: 'The user wants a shortlist. Publisher roundups and community threads decide who makes the cut.' },
-  compare: { name: 'Comparing options',            short: 'Compare',   fmt: 'table',     d: 'The user names options or criteria. The model builds a side-by-side table from product pages and comparison content.' },
-  txn:     { name: 'Purchase / transactional',     short: 'Act',       fmt: 'steps',     d: 'The user is ready to act. Product pages, application flows, and local signals carry the most weight.' }
+  info:    { name: 'Information gathering',       short: 'Learn',     fmt: 'explainer', cue: 'how / what',
+    d: 'The user wants to understand a topic. Brands are incidental; explainers and authorities get cited.',
+    implied: (n) => `Wants to understand the basics before choosing anything, with a focus on ${n}.` },
+  rec:     { name: 'Looking for recommendations', short: 'Recommend', fmt: 'shortlist', cue: 'best',
+    d: 'The user wants a shortlist. The brands named on affiliate roundups and community threads decide who makes the cut.',
+    implied: (n) => `Wants a short, trustworthy pick list that fits ${n}.` },
+  compare: { name: 'Comparing options',           short: 'Compare',   fmt: 'table', cue: 'vs',
+    d: 'The user names options. The model builds a side-by-side table from product pages, schema and comparison content.',
+    implied: (n) => `Already has a shortlist and wants a tie-breaker based on ${n}.` },
+  txn:     { name: 'Purchase / transactional',    short: 'Act',       fmt: 'steps', cue: 'apply / open',
+    d: 'The user is ready to act. Product pages, application paths and local listings carry the most weight.',
+    implied: (n) => `Ready to act now and wants the fastest path, with ${n}.` }
 };
 
 /* How much each content format is boosted by each intent */
 const INTENT_FMT = {
-  info:    { explainer: 1.35, howto: 1.15, tool: 1.0, listicle: .85, compare: .9, product: .78, review: .85, thread: .95, local: .6, video: 1.0 },
-  rec:     { explainer: .8, howto: .85, tool: .8, listicle: 1.45, compare: 1.1, product: .9, review: 1.25, thread: 1.2, local: .9, video: .95 },
-  compare: { explainer: .8, howto: .8, tool: .9, listicle: 1.05, compare: 1.5, product: 1.2, review: 1.15, thread: 1.0, local: .7, video: .9 },
-  txn:     { explainer: .7, howto: 1.2, tool: 1.3, listicle: .75, compare: .9, product: 1.55, review: .9, thread: .75, local: 1.35, video: .8 }
+  info:    { explainer: 1.35, guide: 1.3, howto: 1.15, tool: 1.0, listicle: .85, compare: .9, product: .78, review: .85, thread: .95, local: .6, video: 1.05 },
+  rec:     { explainer: .8, guide: 1.1, howto: .85, tool: .8, listicle: 1.45, compare: 1.1, product: .9, review: 1.25, thread: 1.2, local: .9, video: 1.0 },
+  compare: { explainer: .8, guide: 1.0, howto: .8, tool: .9, listicle: 1.05, compare: 1.5, product: 1.25, review: 1.15, thread: 1.0, local: .7, video: .9 },
+  txn:     { explainer: .7, guide: .95, howto: 1.2, tool: 1.3, listicle: .75, compare: .9, product: 1.55, review: .9, thread: .75, local: 1.35, video: .8 }
 };
 
-/* ---------- Scenarios (persona × intent) ----------
-   fan:   fan-out queries [query, type]
-   src:   candidate sources the retriever can find
-   items: answer building blocks. b=null → always included (topic point);
-          b=brand → included only if that brand wins enough evidence.
-   named: brands named in the prompt (always discussed)
-   aeo:   scenario-specific AEO recommendations                         */
-const SCEN = {
+/* What each persona needs, by topic: [need phrase used in the implied intent, inferred signal chips...] */
+const NEEDS = {
+  general: { checking: ['low fees and a good app', 'Fee-averse', 'Values a good app'], online: ['an app that is easy and secure', 'Mobile-first', 'Security-conscious'], mortgage: ['a fair rate and a smooth process', 'Rate-sensitive', 'Wants a simple process'], wealth: ['understanding fees and trust', 'Unsure if advice is worth it', 'Fee-sensitive'], cards: ['simple, solid rewards', 'Rewards-motivated', 'No annual fee'] },
+  student: { checking: ['no fees and overdraft protection on a small income', 'Low, irregular balance', 'Overdraft risk', 'Parents may transfer money'], online: ['budgeting help and easy Zelle splits', 'Splits rent and dinners', 'Mobile-only', 'Needs budgeting nudges'], mortgage: ['building credit now for a future purchase', 'Long time horizon', 'Thin credit file', 'Curious, not ready'], wealth: ['starting small with low minimums', 'Very small balances', 'Wants to learn', 'Mobile-first investing'], cards: ['building credit safely with no history', 'No credit history', 'Approval-odds anxiety', 'No annual fee'] },
+  starter: { checking: ['setting up direct deposit and automatic savings', 'First paycheck', 'Needs an emergency fund', 'Responds to automation'], online: ['budgeting a first salary automatically', 'New income', 'Wants auto-savings', 'Loan payments to track'], mortgage: ['how long to save and what credit is needed', 'Renting now', 'Student loans', 'Buying in 2 to 4 years'], wealth: ['starting a Roth IRA alongside a 401(k)', 'New 401(k)', 'Small but growing savings', 'Wants simple rules'], cards: ['building credit without getting into debt', 'Thin credit file', 'Fear of debt', 'Wants a path to better cards'] },
+  fthb: { checking: ['keeping savings and a future mortgage under one roof', 'Saving for a down payment', 'Will need a lender soon', 'Values relationship perks'], online: ['tracking savings and credit toward a home', 'Saving goal', 'Credit-score focused', 'Wants progress tracking'], mortgage: ['down payment help and a trusted lender', 'Thinks 20% down is required', 'Grant-eligible', 'Needs hand-holding'], wealth: ['keeping down payment money safe but earning', 'Short time horizon', 'Low risk tolerance', 'Liquidity needed'], cards: ['not hurting a mortgage application', 'Pre-approval coming', 'Credit-score sensitive', 'Avoids new inquiries'] },
+  ema: { checking: ['relationship perks for a high balance', '$100k+ relationship', 'Wants a named banker', 'Travel perks appeal'], online: ['seeing every account in one place', 'Many accounts', 'Wants alerts and controls', 'Values time'], mortgage: ['jumbo financing and relationship pricing', 'Buying a bigger home', 'Has investments to pledge', 'Rate discount seeker'], wealth: ['when advice is worth it and how fees work', 'Has equity comp', 'Tax optimization need', 'Distrusts commissions'], cards: ['maximizing rewards on big spending', 'High monthly spend', 'Values perks', 'Wants a bank tie-in'] },
+  smb: { checking: ['business-grade tools and a banker who knows small business', 'Payroll and vendor payments', 'Needs cash-flow visibility', 'May need credit later'], online: ['cash-flow visibility, ACH and accounting integration', 'Uses QuickBooks', 'Pays vendors by ACH', 'Time-starved'], mortgage: ['an SBA lender for an owner-occupied building', 'Paying rent on a building', 'SBA-eligible', 'Needs a local lender'], wealth: ['a 401(k) for employees and personal wealth planning', '14 employees', 'Retention concerns', 'Owner exit planning ahead'], cards: ['employee cards, controls and cash back', 'Many small purchases', 'Employee spending', 'Wants to separate expenses'] }
+};
 
-/* ======================= GENERAL ======================= */
-general_info: {
-  prompt: 'How do high-yield savings accounts work, and is my money actually safe in one?',
-  implied: 'Wants to earn more on idle cash without taking on risk. The real question is about trust: is an online bank as safe as a big bank?',
-  explicit: ['high-yield savings', 'safety'],
-  inferred: ['Risk-averse saver', 'Probably has cash in a low-rate account', 'Will compare online banks against traditional banks next'],
-  fan: [
-    ['how do high yield savings accounts work', 'explainer'],
-    ['high yield savings account FDIC insurance limit', 'trust'],
-    ['high yield savings vs traditional savings rates 2026', 'freshness'],
-    ['are online banks safe', 'trust'],
-    ['best high yield savings accounts', 'commercial'],
-    ['PNC high yield savings', 'entity'],
-    ['high yield savings pros and cons', 'explainer'],
-    ['reddit is a HYSA worth it', 'community']
-  ],
-  src: [
-    { id: 'fdic', dom: 'fdic.gov', t: 'Deposit Insurance FAQs', type: 'authority', fmt: 'explainer', rel: .92, b: [] },
-    { id: 'inv', dom: 'investopedia.com', t: 'What Is a High-Yield Savings Account?', type: 'publisher', fmt: 'explainer', rel: .9, b: [] },
-    { id: 'nw', dom: 'nerdwallet.com', t: 'Best High-Yield Online Savings Accounts of 2026', type: 'publisher', fmt: 'listicle', rel: .78, b: ['ally', 'capone', 'sofi'] },
-    { id: 'br', dom: 'bankrate.com', t: 'High-yield savings vs. traditional savings', type: 'publisher', fmt: 'compare', rel: .8, b: ['ally', 'capone', 'pnc'] },
-    { id: 'pncp', dom: 'pnc.com', path: '/personal-banking/banking/savings/high-yield-savings', t: 'PNC High Yield Savings℠', type: 'owned', fmt: 'product', rel: .66, b: ['pnc'], issue: 'js' },
-    { id: 'pnci', dom: 'pnc.com', path: '/insights/personal-finance/save', t: 'What Is a High-Yield Savings Account?', type: 'owned', fmt: 'explainer', rel: .74, b: ['pnc'] },
-    { id: 'rd', dom: 'reddit.com', path: '/r/personalfinance', t: 'Is a HYSA actually safe? What happens if the bank fails?', type: 'ugc', fmt: 'thread', rel: .7, b: ['ally', 'sofi', 'capone'] },
-    { id: 'cfpb', dom: 'consumerfinance.gov', t: 'Checking and savings account basics', type: 'authority', fmt: 'explainer', rel: .74, b: [] },
-    { id: 'ally', dom: 'ally.com', t: 'Online Savings Account', type: 'competitor', fmt: 'product', rel: .6, b: ['ally'] }
-  ],
-  items: [
-    { b: null, h: 'How they work', t: 'A high-yield savings account pays a higher APY than a typical savings account. That’s often because online banks have lower overhead. Interest usually compounds daily and posts monthly, and the rate is variable, so it can move with the Fed.', src: ['inv', 'pnci', 'br'] },
-    { b: null, h: 'Is your money safe?', t: 'Yes, as long as the bank is FDIC-insured. Deposits are covered up to $250,000 per depositor, per insured bank, per ownership category. You can confirm a bank’s status with the FDIC’s BankFind tool.', src: ['fdic', 'cfpb'] },
-    { b: null, h: 'Trade-offs to know', t: 'Rates aren’t locked, some accounts need a minimum balance for the top rate, and moving money to an outside checking account can take 1 to 3 business days.', src: ['inv', 'rd'] },
-    { b: 'pnc', h: 'PNC High Yield Savings', t: 'Traditional banks compete here too. PNC offers a High Yield Savings account, which suits you if you want a higher rate with an established bank you can also visit in person. Availability varies by market.', src: ['pncp', 'pnci', 'br'] },
-    { b: 'ally', h: 'Ally', t: 'Online-only banks like Ally come up often for competitive APYs, no monthly fees, and no minimums.', src: ['ally', 'nw', 'rd'] },
-    { b: 'capone', h: 'Capital One 360', t: 'Capital One 360 Performance Savings is a common pick if you want an online rate with some branch and café access.', src: ['nw', 'br', 'rd'] },
-    { b: 'sofi', h: 'SoFi', t: 'SoFi pairs savings with checking and usually advertises its best APY with direct deposit.', src: ['nw', 'rd'] }
-  ],
-  maxBrands: 2,
-  aeo: [
-    { lever: 'Content', t: 'Own the definition', d: 'Open the PNC Insights explainer with a 40 to 60 word definition, then FDIC facts and a dated example. Models lift answer-first paragraphs almost verbatim.' },
-    { lever: 'Technical', t: 'Server-render the rate module', d: 'The High Yield Savings product page loads its rate and features client-side. Bing-based and fetch-based retrievers see an empty shell.' },
-    { lever: 'Off-site', t: 'Be in the roundups', d: 'NerdWallet and Reddit decide the shortlist. Make sure PNC High Yield Savings is reviewed and current on the top three publisher lists.' }
-  ]
+/* ---------- Topics ----------
+   products[segment][brand] = [name, line, col1, col2, col3, bestFor]
+   pools[segment] = third-party + competitor sources the retriever can find
+   m (mentions) on affiliate pages: [brand, label] in list order
+   m on social pages: [brand, sentiment(+ ~ -), count, quote]
+   boost = what changes after third-party outreach / community participation */
+const TOPICS = {
+
+/* ====================== CHECKING ====================== */
+checking: {
+  name: 'Checking Accounts', short: 'Checking', ic: 'check',
+  segOf: { student: 'student', ema: 'ema', smb: 'smb' },
+  cat: { default: ['checking account', 'checking accounts'], student: ['student checking account', 'student checking accounts'], ema: ['premium checking account', 'premium checking accounts'], smb: ['business checking account', 'business checking accounts'] },
+  feeword: 'fees and requirements', localQ: 'PNC branch',
+  trustQ: 'checking account FDIC insurance and overdraft rules',
+  cols: ['Monthly fee & waiver', 'Overdraft approach', 'Standout'],
+  schemaType: 'BankAccount',
+  faqQ: ['Is there a monthly service charge?', 'How does PNC help me avoid overdraft fees?'],
+  compare: { default: ['pnc', 'chase', 'wf'], student: ['pnc', 'chase', 'boa'], ema: ['pnc', 'chase', 'boa'], smb: ['pnc', 'chase', 'boa'] },
+  prompts: {
+    info: ['What should I look for in a checking account, and how do overdraft fees work?', 'What should a college student look for in a checking account?', 'I just got my first real paycheck. What kind of checking account should I have now?', 'I’m saving for a down payment. Should my checking and savings be at the same bank as my mortgage?', 'Are premium checking accounts worth it if I keep a high balance?', 'Do I need a separate business checking account for my small business, and what should I look for?'],
+    rec: ['What’s the best bank for everyday checking? I want a good app and no surprise fees.', 'What’s the best checking account for a college student with no fees?', 'What’s the best checking account for someone who just started their first job?', 'Which bank has the best checking account if I’m also planning to get a mortgage soon?', 'What’s the best premium checking account for a high earner who wants perks?', 'What’s the best business checking account for a small business with about 15 employees?'],
+    compare: ['PNC vs Chase vs Wells Fargo for checking: which is actually better?', 'PNC Virtual Wallet Student vs Chase College Checking vs Bank of America for a college student?', 'PNC Virtual Wallet vs Chase Total Checking vs Wells Fargo for my first real checking account?', 'PNC vs Chase vs Wells Fargo checking: which is best if I’ll also need a mortgage?', 'PNC Performance Select vs Chase Sapphire Banking vs Bank of America Preferred Rewards?', 'PNC Business Checking vs Chase Business Complete vs Bank of America Business Advantage?'],
+    txn: ['I want to open a checking account online today. Which one has a good bonus, and how do I apply?', 'How do I open a student checking account online today?', 'I want to open a checking account and set up direct deposit before my first paycheck. Where should I start?', 'I want to open a checking account at a bank that also does mortgages. Where should I apply?', 'I want to open a premium checking account and move about $150k over. Where should I start?', 'I need to open a business checking account this week for my LLC. What do I need and where?']
+  },
+  products: {
+    default: {
+      pnc: ['PNC Virtual Wallet', 'Checking paired with Reserve and Growth savings, budgeting tools like Spend Analyzer, and Low Cash Mode for extra time to fix a negative balance.', 'Waivable with qualifying direct deposit or balance', 'Low Cash Mode: alerts plus extra time before fees', 'Spend, Reserve and Growth accounts with built-in budgeting', 'budgeting tools and overdraft protection matter most'],
+      chase: ['Chase Total Checking', 'The largest branch and ATM network and a polished app. The fee is waivable with direct deposit.', 'Waivable with direct deposit or balance', 'Overdraft Assist for small overdrafts', 'Biggest ATM network; frequent sign-up bonus', 'you want the biggest ATM network or a sign-up bonus'],
+      wf: ['Wells Fargo Everyday Checking', 'A large footprint and frequent new-account offers.', 'Waivable with direct deposit or balance', 'Extra Day Grace Period', 'Large footprint in the West and South', 'you live in its footprint'],
+      capone: ['Capital One 360 Checking', 'No monthly fees, no overdraft fees and a top-rated app.', 'None', 'No overdraft fees', 'Fee-free with a top-rated app', 'you want zero fees and don’t need branches'],
+      ally: ['Ally Spending Account', 'Online-only with no monthly fees and savings buckets.', 'None', 'CoverDraft', 'Savings buckets', 'you’re comfortable being fully digital']
+    },
+    student: {
+      pnc: ['PNC Virtual Wallet Student', 'No monthly service charge while you’re a student, savings and budgeting built in, and Low Cash Mode to help avoid overdraft fees.', 'None while you’re a student', 'Low Cash Mode: alerts plus extra time', 'Links easily to a parent’s PNC account', 'your family banks with PNC and you want budgeting built in'],
+      chase: ['Chase College Checking', 'No monthly fee for up to five years while enrolled, plus a big ATM network.', 'None for up to 5 years in school', 'Overdraft Assist', 'Big ATM network; student bonus', 'a sign-up bonus and ATM reach matter most'],
+      boa: ['Bank of America Advantage SafeBalance', 'Fee waived for eligible students, and it can’t overdraw.', 'Waived for eligible students', 'No overdrafts (transactions decline)', 'Zero overdraft risk', 'you never want to risk overdrafting'],
+      capone: ['Capital One 360 Checking', 'No fees at all and a top-rated app.', 'None', 'No overdraft fees', 'Fully fee-free', 'you don’t need branches'],
+      discover: ['Discover Cashback Debit', 'No fees and cash back on debit purchases.', 'None', 'No overdraft fees', 'Cash back on debit', 'you want rewards on debit']
+    },
+    ema: {
+      pnc: ['PNC Virtual Wallet with Performance Select', 'PNC’s premium tier: relationship rates, ATM fee reimbursements and perks, with a path to PNC Investments and PNC Private Bank.', 'Waivable with qualifying balances or direct deposit', 'Low Cash Mode plus relationship perks', 'Banker access and a path to advice', 'you want a local banker and integrated budgeting'],
+      chase: ['Chase Sapphire Banking', 'Premium checking with ATM fee refunds and J.P. Morgan advisor access.', '$75k in qualifying balances', 'Overdraft Assist', 'No foreign fees; advisor access', 'you travel and use Sapphire cards'],
+      boa: ['Bank of America Preferred Rewards', 'Tiered benefits across banking, Merrill investing and credit card boosts.', 'Tiers from $20k to $100k+', 'Balance Connect', 'Up to 75% card rewards boost', 'you’ll consolidate with Merrill and BofA cards'],
+      citi: ['Citi Priority', 'A relationship tier with travel-friendly perks and wealth advisors.', 'Combined balance requirement', 'Standard overdraft protection', 'Travel perks', 'you want Citi’s travel ecosystem']
+    },
+    smb: {
+      pnc: ['PNC Business Checking', 'Tiered business checking with PNC Cash Flow Insight for invoicing and cash forecasting, plus SBA lending and treasury services as you grow.', 'Waivable with balances or activity', 'Business overdraft protection options', 'Cash Flow Insight and a dedicated business banker', 'you want a local business banker and cash-flow tools'],
+      chase: ['Chase Business Complete Banking', 'Built-in card acceptance and a large branch network.', 'Waivable with balance or card sales', 'Overdraft protection options', 'QuickAccept card processing', 'you take card payments in person'],
+      boa: ['Bank of America Business Advantage', 'Two tiers with accounting integrations and Preferred Rewards for Business.', 'Waivable with balance or spend', 'Balance Connect', 'Rewards tie-in', 'you want to tie in BofA rewards'],
+      bluevine: ['Bluevine Business Checking', 'Online-only with no monthly fee and interest on balances.', 'None', 'Limited', 'Interest on balances', 'you’re fully online'],
+      wf: ['Wells Fargo Initiate Business Checking', 'A low-fee entry business account.', 'Waivable with balance', 'Overdraft protection options', 'Large footprint', 'you want a simple starter account']
+    }
+  },
+  pages: {
+    default: { path: '/personal-banking/banking/checking/virtual-wallet', t: 'Virtual Wallet® | Checking + Savings' },
+    student: { path: '/personal-banking/banking/checking/virtual-wallet-student', t: 'Virtual Wallet® Student' },
+    ema: { path: '/personal-banking/banking/checking/virtual-wallet/performance-select', t: 'Virtual Wallet® with Performance Select', js: true },
+    smb: { path: '/small-business/banking/business-checking', t: 'Business Checking Accounts | PNC' }
+  },
+  article: { path: '/insights/personal-finance/spend/what-is-a-checking-account', t: 'What Is a Checking Account?' },
+  ppages: {
+    student: { path: '/insights/college/checking-for-college-students', t: 'Checking for College Students: What to Look For', line: 'PNC also publishes a student banking guide that explains linking to a parent’s account for instant transfers.' },
+    starter: { path: '/insights/first-job/set-up-checking-first-paycheck', t: 'Your First Paycheck: Setting Up Checking That Works', line: 'PNC’s first-paycheck guide walks through splitting direct deposit between Spend and Growth.' },
+    fthb: { path: '/insights/home/banking-while-saving-for-a-home', t: 'Banking While You Save for Your First Home', line: 'PNC’s guide for future home buyers shows how Virtual Wallet’s Growth account can hold a down payment fund.' },
+    ema: { path: '/insights/wealth/premium-checking-worth-it', t: 'Is Premium Checking Worth It for High Balances?', line: 'PNC’s guide for high-balance customers explains how relationship benefits stack with PNC Investments.' },
+    smb: { path: '/small-business/insights/choosing-business-checking', t: 'How to Choose a Business Checking Account', line: 'PNC’s small business guide covers separating finances and when to add treasury services.' }
+  },
+  points: {
+    default: [['Fees and how to waive them', 'Most checking accounts charge a monthly fee that you can waive with direct deposit or a minimum balance. Read the waiver rules before you open.'], ['Overdraft protection', 'Policies vary a lot. Look for low-balance alerts, grace periods and options that decline rather than overdraw.'], ['App and access', 'Mobile deposit, Zelle and good alerts matter day to day, along with ATMs where you live.']],
+    smb: [['Keep business money separate', 'A dedicated business account protects your liability shield, simplifies taxes and builds a banking history for future credit.'], ['Fees by transaction volume', 'Business accounts often limit free transactions and cash deposits. Match the tier to your monthly activity.'], ['Tools that save time', 'Look for ACH, invoicing, accounting integrations and a banker who can help with credit later.']]
+  },
+  pp: {
+    student: 'As a student, prioritize no monthly fee, low-balance alerts and easy transfers from family.',
+    starter: 'With a first paycheck, set up direct deposit that automatically splits into savings.',
+    fthb: 'Since you’re saving for a home, keeping deposits with a bank that also lends can help with relationship pricing and simpler paperwork.',
+    ema: 'At higher balances, compare the relationship perks you actually use, not just the fee waiver.',
+    smb: 'With 14 employees, prioritize payroll support, ACH and a banker who understands seasonal cash flow.'
+  },
+  steps: { default: ['Choose an account and check the fee waiver and any bonus terms.', 'Have your SSN, a government ID and a funding account ready.', 'Apply online in 5 to 10 minutes.', 'Set up direct deposit and alerts.'], smb: ['Gather your EIN, formation documents (articles or operating agreement) and owner IDs.', 'Choose a tier that fits your monthly transaction volume.', 'Apply online or with a business banker.', 'Set up online banking, ACH and accounting integration.'] },
+  pools: {
+    default: [
+      { id: 'nw', dom: 'nerdwallet.com', t: 'Best Checking Accounts of 2026', type: 'affiliate', fmt: 'listicle', rel: .9, seo: .95, m: [['capone', 'Best overall'], ['chase', 'Best for branch access'], ['ally', 'Best online-only'], ['wf', 'Best for nationwide footprint']], boost: [3, 'Best for budgeting tools'] },
+      { id: 'fa', dom: 'forbes.com', path: '/advisor', t: 'Best Free Checking Accounts', type: 'affiliate', fmt: 'listicle', rel: .82, seo: .85, m: [['capone', 'Best for no fees'], ['ally', 'Best for savers'], ['chase', 'Best big bank']], boost: [2, 'Best for overdraft protection'] },
+      { id: 'br', dom: 'bankrate.com', t: 'PNC Virtual Wallet review 2026', type: 'affiliate', fmt: 'review', rel: .7, seo: .65, m: [['pnc', 'Review: 4.2/5']] },
+      { id: 'rd', dom: 'reddit.com', path: '/r/personalfinance', t: 'Which big bank has the least annoying fees?', type: 'social', fmt: 'thread', rel: .74, seo: .8, m: [['capone', '+', 14, 'Capital One 360. No fees, never looked back.'], ['ally', '+', 9, 'Ally for the savings buckets, honestly.'], ['chase', '~', 6, 'Chase is fine as long as your direct deposit hits.'], ['pnc', '-', 2, 'PNC hit me with a fee years ago, not sure if that changed.']], boost: ['+', 9, 'PNC has Low Cash Mode now. It gave me a day to fix a negative balance with no fee.'] },
+      { id: 'yt', dom: 'youtube.com', t: 'Best Bank Accounts in 2026 (Honest Review)', type: 'social', fmt: 'video', rel: .62, seo: .7, m: [['chase', '+', 1, 'Chase has the most branches by far.'], ['capone', '+', 1, 'Capital One is my top pick for no fees.']], boost: ['+', 1, 'PNC Virtual Wallet is underrated if you like budgeting tools.'] },
+      { id: 'cfpb', dom: 'consumerfinance.gov', t: 'Checking accounts and overdraft fees: what to know', type: 'authority', fmt: 'explainer', rel: .72, seo: .75, m: [] },
+      { id: 'comp', dom: 'chase.com', t: 'Chase Total Checking®', type: 'competitor', fmt: 'product', rel: .6, seo: .85, brand: 'chase' }
+    ],
+    student: [
+      { id: 'nw', dom: 'nerdwallet.com', t: 'Best Student Checking Accounts', type: 'affiliate', fmt: 'listicle', rel: .9, seo: .95, m: [['capone', 'Best overall'], ['chase', 'Best for sign-up bonus'], ['discover', 'Best for cash back'], ['boa', 'Best for avoiding overdrafts']], boost: [2, 'Best for students with family at PNC'] },
+      { id: 'cs', dom: 'cnbc.com', path: '/select', t: 'Best checking accounts for college students', type: 'affiliate', fmt: 'listicle', rel: .8, seo: .8, m: [['capone', 'Best overall'], ['discover', 'Best rewards'], ['chase', 'Best big bank'], ['pnc', 'Best for campus branches']] },
+      { id: 'rd', dom: 'reddit.com', path: '/r/college', t: 'What bank do you use in college?', type: 'social', fmt: 'thread', rel: .76, seo: .75, m: [['capone', '+', 11, 'Capital One. No fees and the app is clean.'], ['chase', '+', 7, 'Chase, there’s an ATM on every corner near campus.'], ['discover', '+', 4, 'Discover debit gives cash back lol'], ['pnc', '~', 3, 'PNC because my parents use it. It’s fine.']], boost: ['+', 9, 'PNC student account: no monthly fee and my parents can send money instantly.'] },
+      { id: 'tk', dom: 'tiktok.com', t: '“Bank accounts I wish I had in college”', type: 'social', fmt: 'video', rel: .55, seo: .4, m: [['capone', '+', 1, 'Capital One 360 is the no-fee GOAT.'], ['discover', '+', 1, 'Discover pays you cash back on your debit card.']], boost: ['+', 1, 'If your parents are at PNC, the student Virtual Wallet makes transfers instant.'] },
+      { id: 'cfpb', dom: 'consumerfinance.gov', t: 'Choosing a college bank account', type: 'authority', fmt: 'explainer', rel: .82, seo: .7, m: [] },
+      { id: 'comp', dom: 'chase.com', t: 'Chase College Checking℠', type: 'competitor', fmt: 'product', rel: .6, seo: .85, brand: 'chase' }
+    ],
+    ema: [
+      { id: 'nw', dom: 'nerdwallet.com', t: 'Best Premium Checking Accounts', type: 'affiliate', fmt: 'listicle', rel: .86, seo: .9, m: [['chase', 'Best for travelers'], ['boa', 'Best for rewards boosts'], ['citi', 'Best relationship perks']], boost: [3, 'Best for local relationship banking'] },
+      { id: 'fa', dom: 'forbes.com', path: '/advisor', t: 'Best Banks for Wealthy Customers', type: 'affiliate', fmt: 'listicle', rel: .8, seo: .8, m: [['boa', 'Best overall'], ['chase', 'Best for advisor access'], ['citi', 'Best for global banking']], boost: [3, 'Best regional relationship bank'] },
+      { id: 'br', dom: 'bankrate.com', t: 'PNC Performance Select review', type: 'affiliate', fmt: 'review', rel: .68, seo: .6, m: [['pnc', 'Review: 4.0/5']] },
+      { id: 'rd', dom: 'reddit.com', path: '/r/HENRYfinance', t: 'Is any bank’s premium tier worth it?', type: 'social', fmt: 'thread', rel: .72, seo: .7, m: [['boa', '+', 12, 'Platinum Honors is unbeatable if you also use Merrill.'], ['chase', '~', 5, 'Sapphire Banking is fine but mostly about the card.'], ['citi', '~', 3, 'Citi Priority was meh for me.']], boost: ['+', 5, 'PNC Performance Select has been solid. My banker actually answers the phone.'] },
+      { id: 'comp', dom: 'bankofamerica.com', t: 'Preferred Rewards', type: 'competitor', fmt: 'product', rel: .7, seo: .85, brand: 'boa' }
+    ],
+    smb: [
+      { id: 'nw', dom: 'nerdwallet.com', t: 'Best Business Checking Accounts of 2026', type: 'affiliate', fmt: 'listicle', rel: .9, seo: .95, m: [['bluevine', 'Best online'], ['chase', 'Best for card acceptance'], ['boa', 'Best for rewards'], ['wf', 'Best starter account']], boost: [3, 'Best for cash-flow tools'] },
+      { id: 'fa', dom: 'forbes.com', path: '/advisor', t: 'Best Small Business Bank Accounts', type: 'affiliate', fmt: 'listicle', rel: .82, seo: .82, m: [['chase', 'Best overall'], ['bluevine', 'Best for interest'], ['boa', 'Best for integrations'], ['pnc', 'Best for regional businesses']] },
+      { id: 'rd', dom: 'reddit.com', path: '/r/smallbusiness', t: 'Which bank for business checking? Tired of fees', type: 'social', fmt: 'thread', rel: .74, seo: .72, m: [['bluevine', '+', 8, 'Bluevine, no fees and it pays interest.'], ['chase', '~', 6, 'Chase works but the fees add up with cash deposits.'], ['boa', '~', 3, 'BofA was okay.']], boost: ['+', 6, 'We moved to PNC. Cash Flow Insight replaced a separate forecasting tool and our banker knows HVAC seasonality.'] },
+      { id: 'yt', dom: 'youtube.com', t: 'Best Business Bank Accounts 2026', type: 'social', fmt: 'video', rel: .6, seo: .65, m: [['bluevine', '+', 1, 'Bluevine is the best online option.'], ['chase', '+', 1, 'Chase if you need branches and card processing.']], boost: ['+', 1, 'PNC is worth a look if you want a business banker and cash-flow forecasting.'] },
+      { id: 'sba', dom: 'sba.gov', t: 'Open a business bank account', type: 'authority', fmt: 'howto', rel: .78, seo: .8, m: [] },
+      { id: 'comp', dom: 'chase.com', t: 'Chase Business Complete Banking®', type: 'competitor', fmt: 'product', rel: .62, seo: .85, brand: 'chase' }
+    ]
+  }
 },
 
-general_rec: {
-  prompt: 'What’s the best bank for everyday checking? I want a good app and no surprise fees.',
-  implied: 'Wants a primary checking account and is fee-averse, likely after a bad overdraft or fee experience. Digital experience matters as much as the rate.',
-  explicit: ['checking', 'good app', 'no surprise fees'],
-  inferred: ['Switching banks', 'Has been burned by overdraft fees', 'Values budgeting tools'],
-  fan: [
-    ['best checking accounts 2026', 'commercial'],
-    ['banks with no overdraft fees', 'commercial'],
-    ['best banking app ratings 2026', 'freshness'],
-    ['checking account with no monthly fee', 'commercial'],
-    ['PNC Virtual Wallet review', 'entity'],
-    ['reddit best bank for checking', 'community'],
-    ['J.D. Power retail banking app satisfaction', 'trust'],
-    ['how to choose a checking account', 'explainer']
-  ],
-  src: [
-    { id: 'nw', dom: 'nerdwallet.com', t: 'Best Checking Accounts of 2026', type: 'publisher', fmt: 'listicle', rel: .9, b: ['capone', 'ally', 'chase', 'sofi'] },
-    { id: 'fa', dom: 'forbes.com', path: '/advisor', t: 'Best Free Checking Accounts', type: 'publisher', fmt: 'listicle', rel: .82, b: ['capone', 'sofi', 'discover'] },
-    { id: 'br', dom: 'bankrate.com', t: 'PNC Virtual Wallet review 2026', type: 'publisher', fmt: 'review', rel: .72, b: ['pnc'] },
-    { id: 'jdp', dom: 'jdpower.com', t: 'U.S. Banking Mobile App Satisfaction Study', type: 'authority', fmt: 'review', rel: .7, b: ['chase', 'capone', 'pnc', 'boa'] },
-    { id: 'rd', dom: 'reddit.com', path: '/r/personalfinance', t: 'Which big bank has the least annoying fees?', type: 'ugc', fmt: 'thread', rel: .74, b: ['capone', 'ally', 'chase'] },
-    { id: 'pncv', dom: 'pnc.com', path: '/personal-banking/banking/checking/virtual-wallet', t: 'Virtual Wallet® | Checking + Savings', type: 'owned', fmt: 'product', rel: .66, b: ['pnc'] },
-    { id: 'pncl', dom: 'pnc.com', path: '/personal-banking/banking/low-cash-mode', t: 'Low Cash Mode® | Overdraft Help', type: 'owned', fmt: 'explainer', rel: .62, b: ['pnc'] },
-    { id: 'chase', dom: 'chase.com', t: 'Chase Total Checking®', type: 'competitor', fmt: 'product', rel: .58, b: ['chase'] },
-    { id: 'cfpb', dom: 'consumerfinance.gov', t: 'Overdraft and NSF fees: what to know', type: 'authority', fmt: 'explainer', rel: .55, b: [] }
-  ],
-  items: [
-    { b: 'capone', h: 'Capital One 360 Checking', t: 'Frequently ranked first for no monthly fees, no overdraft fees, and a highly rated app.', src: ['nw', 'fa', 'rd', 'jdp'] },
-    { b: 'pnc', h: 'PNC Virtual Wallet', t: 'Pairs checking with savings and built-in budgeting tools like Spend Analyzer and the Money Bar. Low Cash Mode gives you extra time to cover a negative balance before an overdraft fee.', src: ['br', 'pncv', 'pncl', 'jdp'] },
-    { b: 'ally', h: 'Ally Spending Account', t: 'Online-only with no monthly fees and strong savings-bucket tools. There are no branches, though.', src: ['nw', 'rd'] },
-    { b: 'chase', h: 'Chase Total Checking', t: 'The largest branch and ATM network and a polished app. The monthly fee is waivable with direct deposit.', src: ['nw', 'chase', 'jdp', 'rd'] },
-    { b: 'sofi', h: 'SoFi Checking & Savings', t: 'No account fees and early direct deposit, with the best APY tied to direct deposit.', src: ['nw', 'fa'] },
-    { b: 'discover', h: 'Discover Cashback Debit', t: 'No fees and cash back on debit purchases, which is unusual for a checking account.', src: ['fa'] }
-  ],
-  close: 'If branch access matters, a national bank with fee-avoidance tools may suit you. If you’re fine being fully digital, online banks are usually cheapest.',
-  maxBrands: 4,
-  aeo: [
-    { lever: 'Off-site', t: 'Win the “best checking” roundups', d: 'For broad recommendation prompts, the publisher listicle is the answer. PNC needs Virtual Wallet placements, with accurate fee data, on NerdWallet and Forbes Advisor.' },
-    { lever: 'Content', t: 'Name the differentiator the way users ask', d: 'Users ask about “no surprise fees.” Publish a plain-language Low Cash Mode explainer that answers “Does PNC charge overdraft fees?” directly.' },
-    { lever: 'Off-site', t: 'Seed authentic community proof', d: 'Reddit threads drive ChatGPT shortlists. Support genuine customer stories and staff-disclosed answers in relevant subreddits.' }
-  ]
+/* ====================== ONLINE BANKING ====================== */
+online: {
+  name: 'Online Banking', short: 'Online banking', ic: 'phone',
+  segOf: { smb: 'smb' },
+  cat: { default: ['mobile banking app', 'mobile banking apps'], smb: ['business online banking platform', 'business online banking platforms'] },
+  feeword: 'app features', localQ: 'PNC branch',
+  trustQ: 'is mobile banking safe FDIC',
+  cols: ['Tools & rating', 'Payments', 'Standout'],
+  schemaType: 'MobileApplication',
+  faqQ: ['What can I do in the PNC Mobile app?', 'Can I send money with Zelle in the PNC app?'],
+  compare: { default: ['pnc', 'chase', 'capone'], smb: ['pnc', 'chase', 'boa'] },
+  prompts: {
+    info: ['What features should I expect from a good mobile banking app, and is it safe?', 'What banking app features actually help college students manage money?', 'What banking app tools can help me budget my first paycheck?', 'Can my bank’s app help me save for a down payment and track my credit?', 'What digital tools do banks offer for people managing a lot of accounts?', 'What should small business online banking include, like cash flow tools and ACH?'],
+    rec: ['Which bank has the best mobile app right now?', 'What’s the best banking app for college students who want budgeting help?', 'What’s the best banking app for budgeting and saving automatically?', 'Which bank app is best for saving toward a house?', 'Which bank has the best digital experience for high-balance customers?', 'What’s the best online banking platform for a small business?'],
+    compare: ['PNC app vs Chase app vs Capital One app: which is better?', 'Is the PNC, Chase or Capital One app better for a college student?', 'PNC Virtual Wallet tools vs Chase vs Capital One for budgeting my first salary?', 'PNC vs Chase vs Capital One apps for saving toward a down payment?', 'PNC vs Chase vs Capital One digital banking for managing multiple accounts?', 'PNC Cash Flow Insight vs Chase business online banking vs Bank of America Business Advantage 360?'],
+    txn: ['How do I set up mobile banking and Zelle today?', 'How do I set up a banking app and Zelle so I can split rent with roommates?', 'How do I set up direct deposit and automatic savings in my bank app?', 'How do I set up automatic savings for a down payment in my bank app?', 'How do I link all my accounts in one bank app and set up alerts?', 'How do I enroll in business online banking and pay my vendors by ACH?']
+  },
+  products: {
+    default: {
+      pnc: ['PNC Mobile with Virtual Wallet', 'Spend Analyzer, the Money Bar, savings goals and Low Cash Mode alerts built into the app.', 'Budgeting built in; highly rated', 'Zelle, mobile deposit, bill pay', 'Low Cash Mode and the Money Bar', 'you want budgeting tools inside your banking app'],
+      chase: ['Chase Mobile', 'A polished app with Zelle, credit score tools and card controls.', 'Highly rated; Credit Journey', 'Zelle, mobile deposit', 'Broad feature set', 'you want an all-in-one app'],
+      capone: ['Capital One Mobile', 'A top-rated app with CreditWise and no-fee banking.', 'Top-rated; CreditWise', 'Zelle, mobile deposit', 'Clean design, no fees', 'you want the simplest fee-free app'],
+      boa: ['Bank of America Mobile', 'Erica virtual assistant and spending insights.', 'Highly rated; Erica assistant', 'Zelle, mobile deposit', 'AI assistant', 'you want an AI assistant'],
+      ally: ['Ally Mobile', 'Savings buckets and boosters in an online-only app.', 'Well rated; savings buckets', 'Zelle, mobile deposit', 'Savings automation', 'you save in buckets']
+    },
+    smb: {
+      pnc: ['PNC Cash Flow Insight', 'Invoicing, payables and cash forecasting inside PNC business online banking.', 'Cash forecasting and invoicing built in', 'ACH, wires, bill pay', 'Cash-flow forecasting', 'you need cash-flow visibility across accounts'],
+      chase: ['Chase Business online banking', 'Card acceptance and payments in one platform.', 'Strong mobile app', 'ACH, wires, QuickAccept', 'Card acceptance', 'you take card payments'],
+      boa: ['Bank of America Business Advantage 360', 'A cash-flow monitor and accounting software integrations.', 'Cash flow monitor', 'ACH, wires, Zelle', 'Accounting integrations', 'you rely on accounting integrations'],
+      bluevine: ['Bluevine', 'Online business banking with bill pay and sub-accounts.', 'Simple online tools', 'ACH, bill pay', 'Sub-accounts', 'you’re fully online']
+    }
+  },
+  pages: {
+    default: { path: '/personal-banking/banking/online-and-mobile-banking', t: 'Online & Mobile Banking | PNC' },
+    smb: { path: '/small-business/banking/cash-flow-insight', t: 'PNC Cash Flow Insight®', js: true }
+  },
+  article: { path: '/insights/personal-finance/spend/mobile-banking-features', t: 'Mobile Banking Features You Should Be Using' },
+  ppages: {
+    student: { path: '/insights/college/budgeting-app-tips-for-students', t: 'Budgeting App Tips for College Students', line: 'PNC’s student budgeting guide shows how to use the Money Bar to set a weekly spending limit.' },
+    starter: { path: '/insights/first-job/automate-your-first-salary', t: 'Automate Your First Salary in the PNC App', line: 'PNC’s first-job guide explains automatic transfers to Growth on payday.' },
+    fthb: { path: '/insights/home/save-for-a-down-payment-in-app', t: 'Save for a Down Payment with Savings Goals', line: 'PNC’s home-saver guide shows savings goals and credit tracking side by side.' },
+    ema: { path: '/insights/wealth/manage-all-accounts-in-one-place', t: 'See All Your Accounts in One Place', line: 'PNC’s guide covers linking investment accounts and setting custom alerts.' },
+    smb: { path: '/small-business/insights/digital-tools-for-small-business', t: 'Digital Banking Tools for Small Businesses', line: 'PNC’s small business guide shows how Cash Flow Insight syncs with QuickBooks.' }
+  },
+  points: {
+    default: [['Core features', 'Expect mobile check deposit, Zelle, bill pay, card controls and real-time alerts.'], ['Budgeting and savings tools', 'Some banks build in spending trackers, savings goals and low-balance warnings. These matter more than design.'], ['Security', 'Look for multi-factor authentication, card lock and FDIC-insured accounts. Avoid public Wi-Fi for banking.']],
+    smb: [['Cash-flow visibility', 'Forecasting and a real-time view of receivables and payables help avoid payroll surprises.'], ['Payments', 'ACH, wires, positive pay and approval workflows protect against fraud and save time.'], ['Integrations', 'Syncing with QuickBooks or Xero cuts manual reconciliation.']]
+  },
+  pp: {
+    student: 'As a student, look for spending limits and instant Zelle splits for rent and dinners.',
+    starter: 'With a first salary, set up automatic transfers on payday so saving happens first.',
+    fthb: 'Use a dedicated savings goal for the down payment and track your credit score in the same app.',
+    ema: 'With many accounts, a single dashboard and custom alerts save the most time.',
+    smb: 'For a 14-person team, approval workflows and QuickBooks sync matter more than a pretty app.'
+  },
+  steps: { default: ['Download your bank’s app and sign in or enroll.', 'Turn on multi-factor authentication and alerts.', 'Enroll in Zelle with your phone or email.', 'Set up automatic transfers to savings.'], smb: ['Enroll in business online banking with your EIN and account details.', 'Add users and set approval limits.', 'Add vendors and set up ACH payments.', 'Connect QuickBooks or your accounting software.'] },
+  pools: {
+    default: [
+      { id: 'jdp', dom: 'jdpower.com', t: 'U.S. Banking Mobile App Satisfaction Study', type: 'authority', fmt: 'review', rel: .78, seo: .8, m: [['chase', 'Top ranked'], ['capone', 'Top ranked'], ['boa', 'Above average'], ['pnc', 'Above average']] },
+      { id: 'nw', dom: 'nerdwallet.com', t: 'Best Banking Apps of 2026', type: 'affiliate', fmt: 'listicle', rel: .88, seo: .92, m: [['capone', 'Best overall'], ['chase', 'Best big-bank app'], ['ally', 'Best for savers'], ['boa', 'Best AI assistant']], boost: [3, 'Best built-in budgeting'] },
+      { id: 'cs', dom: 'cnbc.com', path: '/select', t: 'Best mobile banking apps', type: 'affiliate', fmt: 'listicle', rel: .8, seo: .78, m: [['chase', 'Best overall'], ['capone', 'Best no-fee'], ['boa', 'Best features']], boost: [2, 'Best for budgeting tools'] },
+      { id: 'rd', dom: 'reddit.com', path: '/r/personalfinance', t: 'Which bank actually has a good app?', type: 'social', fmt: 'thread', rel: .74, seo: .8, m: [['capone', '+', 15, 'Capital One’s app is the cleanest by far.'], ['chase', '+', 9, 'Chase app does everything.'], ['boa', '~', 4, 'Erica is kind of a gimmick.'], ['pnc', '~', 2, 'PNC’s app is okay.']], boost: ['+', 7, 'PNC’s Money Bar is honestly underrated for budgeting.'] },
+      { id: 'yt', dom: 'youtube.com', t: 'I Tested 6 Banking Apps for 30 Days', type: 'social', fmt: 'video', rel: .64, seo: .7, m: [['chase', '+', 1, 'Chase wins on features.'], ['capone', '+', 1, 'Capital One wins on simplicity.'], ['ally', '+', 1, 'Ally’s buckets are great for saving.']], boost: ['+', 1, 'PNC’s Low Cash Mode is the best overdraft feature I tested.'] },
+      { id: 'fdic', dom: 'fdic.gov', t: 'Banking safely online', type: 'authority', fmt: 'explainer', rel: .7, seo: .7, m: [] },
+      { id: 'comp', dom: 'chase.com', t: 'Chase Mobile® app', type: 'competitor', fmt: 'product', rel: .6, seo: .85, brand: 'chase' }
+    ],
+    smb: [
+      { id: 'nw', dom: 'nerdwallet.com', t: 'Best Online Business Bank Accounts', type: 'affiliate', fmt: 'listicle', rel: .86, seo: .9, m: [['bluevine', 'Best overall'], ['chase', 'Best for card payments'], ['boa', 'Best integrations']], boost: [2, 'Best cash-flow forecasting'] },
+      { id: 'fa', dom: 'forbes.com', path: '/advisor', t: 'Best Business Banking Platforms', type: 'affiliate', fmt: 'listicle', rel: .8, seo: .8, m: [['boa', 'Best for integrations'], ['chase', 'Best all-in-one'], ['bluevine', 'Best for startups']], boost: [3, 'Best for regional businesses'] },
+      { id: 'rd', dom: 'reddit.com', path: '/r/smallbusiness', t: 'Best bank for ACH and invoicing?', type: 'social', fmt: 'thread', rel: .72, seo: .7, m: [['bluevine', '+', 7, 'Bluevine’s bill pay is easy.'], ['chase', '~', 5, 'Chase ACH limits annoyed me.'], ['boa', '+', 4, 'BofA syncs with QuickBooks well.']], boost: ['+', 5, 'PNC Cash Flow Insight does invoicing and forecasting, and it syncs with QuickBooks.'] },
+      { id: 'sba', dom: 'sba.gov', t: 'Manage your finances', type: 'authority', fmt: 'explainer', rel: .7, seo: .75, m: [] },
+      { id: 'comp', dom: 'bankofamerica.com', t: 'Business Advantage 360', type: 'competitor', fmt: 'product', rel: .62, seo: .82, brand: 'boa' }
+    ]
+  }
 },
 
-general_compare: {
-  prompt: 'PNC vs Chase vs Wells Fargo for checking: which one is actually better?',
-  implied: 'Already has a shortlist of national banks and is likely in a PNC footprint market. Wants a tie-breaker on fees, perks, and app quality.',
-  explicit: ['PNC', 'Chase', 'Wells Fargo', 'checking'],
-  inferred: ['Branch access matters', 'Likely moving or switching banks', 'Decision within weeks'],
-  named: ['pnc', 'chase', 'wf'],
-  fan: [
-    ['PNC vs Chase checking', 'compare'],
-    ['PNC Virtual Wallet monthly fee waive', 'entity'],
-    ['Chase Total Checking fee requirements', 'entity'],
-    ['Wells Fargo Everyday Checking fees', 'entity'],
-    ['PNC vs Wells Fargo overdraft policy', 'compare'],
-    ['bank app ratings PNC Chase Wells Fargo', 'trust'],
-    ['checking account sign-up bonus 2026', 'freshness'],
-    ['reddit PNC vs Chase', 'community']
-  ],
-  src: [
-    { id: 'pncv', dom: 'pnc.com', path: '/personal-banking/banking/checking/virtual-wallet', t: 'Compare Virtual Wallet® accounts', type: 'owned', fmt: 'product', rel: .84, b: ['pnc'] },
-    { id: 'pncc', dom: 'pnc.com', path: '/personal-banking/banking/checking/compare', t: 'Compare checking accounts', type: 'owned', fmt: 'compare', rel: .7, b: ['pnc'], issue: 'js' },
-    { id: 'chase', dom: 'chase.com', t: 'Chase Total Checking®: fees and requirements', type: 'competitor', fmt: 'product', rel: .82, b: ['chase'] },
-    { id: 'wf', dom: 'wellsfargo.com', t: 'Everyday Checking', type: 'competitor', fmt: 'product', rel: .78, b: ['wf'] },
-    { id: 'br', dom: 'bankrate.com', t: 'Chase vs. PNC: Which bank is right for you?', type: 'publisher', fmt: 'compare', rel: .86, b: ['pnc', 'chase'] },
-    { id: 'gb', dom: 'gobankingrates.com', t: 'Chase vs. Wells Fargo checking compared', type: 'publisher', fmt: 'compare', rel: .72, b: ['chase', 'wf'] },
-    { id: 'jdp', dom: 'jdpower.com', t: 'U.S. Retail Banking Satisfaction Study', type: 'authority', fmt: 'review', rel: .66, b: ['chase', 'pnc', 'wf'] },
-    { id: 'rd', dom: 'reddit.com', path: '/r/banking', t: 'PNC or Chase? Moving to Pittsburgh', type: 'ugc', fmt: 'thread', rel: .68, b: ['pnc', 'chase'] }
-  ],
-  cols: ['Monthly fee & waiver', 'Overdraft approach', 'Standout feature'],
-  items: [
-    { b: 'pnc', h: 'PNC Virtual Wallet', cells: ['Fee waivable with qualifying direct deposit or balance', 'Low Cash Mode: alerts plus extra time to fix a negative balance', 'Built-in Spend, Reserve and Growth accounts with budgeting tools'], src: ['pncv', 'pncc', 'br', 'jdp'] },
-    { b: 'chase', h: 'Chase Total Checking', cells: ['Fee waivable with direct deposit or balance', 'Overdraft assist on small overdrafts', 'Largest branch and ATM network; frequent sign-up bonus'], src: ['chase', 'br', 'gb'] },
-    { b: 'wf', h: 'Wells Fargo Everyday Checking', cells: ['Fee waivable with direct deposit or balance', 'Extra Day Grace Period', 'Large footprint, especially in the West and South'], src: ['wf', 'gb'] }
-  ],
-  verdict: { pnc: 'Pick PNC if budgeting tools and overdraft protection matter most and you live in its footprint.', chase: 'Pick Chase if you travel and want the biggest ATM network or a sign-up bonus.', wf: 'Pick Wells Fargo for its footprint in the West and South.' },
-  maxBrands: 3,
-  aeo: [
-    { lever: 'Technical', t: 'Fix the comparison page', d: 'pnc.com’s “compare checking” page renders its table with JavaScript. Most retrievers read the static HTML, so PNC’s own comparison is invisible on head-to-head prompts.' },
-    { lever: 'Content', t: 'Publish fair head-to-heads', d: 'Models trust comparison content that names competitors. A factual “PNC vs. Chase checking” page with a dated table gives models a primary source to cite.' },
-    { lever: 'Measurement', t: 'Track branded comparison prompts', d: 'Named comparisons are where PNC is guaranteed to appear. Measure whether the facts are right (fees, waivers, overdraft), not just whether PNC shows up.' }
-  ]
+/* ====================== MORTGAGE ====================== */
+mortgage: {
+  name: 'Mortgage Loans', short: 'Mortgage', ic: 'home',
+  segOf: { smb: 'smb' },
+  cat: { default: ['mortgage lender', 'mortgage lenders'], smb: ['commercial real estate loan', 'commercial real estate loans'] },
+  feeword: 'mortgage rates and programs', localQ: 'PNC mortgage loan officer',
+  trustQ: 'how much down payment do I need CFPB',
+  cols: ['Down payment options', 'Help with costs', 'Standout'],
+  schemaType: 'MortgageLoan',
+  faqQ: ['How much do I need for a down payment?', 'Does PNC offer down payment or closing cost help?'],
+  compare: { default: ['pnc', 'chase', 'rocket'], smb: ['pnc', 'wf', 'chase'] },
+  prompts: {
+    info: ['How do mortgage rates work, and how much house can I afford?', 'I’m in college. What should I do now to be able to buy a house someday?', 'How long does it take to save for a house, and what credit score do I need?', 'How much do I really need for a down payment on my first home, and are there grants?', 'Should I pay cash, take a jumbo loan or keep investing when buying a bigger home?', 'How do commercial real estate loans work if I want to buy a building for my business?'],
+    rec: ['Who are the best mortgage lenders right now?', 'Which lenders help young buyers with low down payments?', 'What are the best mortgage lenders for someone buying a first condo with a small down payment?', 'What are the best mortgage lenders for first-time home buyers with a low down payment?', 'What are the best lenders for a jumbo mortgage with relationship pricing?', 'What are the best banks for an SBA 504 or owner-occupied commercial real estate loan?'],
+    compare: ['PNC vs Chase vs Rocket Mortgage: which lender is better?', 'PNC vs Chase vs Rocket Mortgage for buying my first place after college?', 'PNC vs Chase vs Rocket Mortgage for a first condo with a small down payment?', 'PNC vs Chase vs Rocket Mortgage for a first-time buyer with 5% down?', 'PNC vs Chase vs Rocket Mortgage for a jumbo loan?', 'PNC vs Wells Fargo vs Chase for an SBA loan to buy my business’s building?'],
+    txn: ['I want to get pre-approved for a mortgage online this week. Where do I start?', 'How do I get pre-qualified to see what I could afford after graduation?', 'I want to get pre-approved for my first condo. Which lender should I start with?', 'I want to get pre-approved online this week. Which lender should I start with, and what do I need?', 'I want to apply for a jumbo mortgage with a relationship discount. Where do I start?', 'I want to apply for an SBA loan to buy a building. What do I need, and which bank should I call?']
+  },
+  products: {
+    default: {
+      pnc: ['PNC Mortgage', 'PNC Community Loan (low down payment, no PMI for eligible buyers), the PNC Homebuyer Grant (up to $5,000 in eligible areas) and Home Insight tools to track your loan.', 'As little as 3% with Community Loan', 'Homebuyer Grant up to $5,000 (eligible areas)', 'Home Insight Planner and Tracker; local loan officers', 'you want grant help and a local loan officer'],
+      chase: ['Chase Home Lending', 'The DreaMaker low-down-payment loan and a Homebuyer Grant in eligible areas.', 'As little as 3% with DreaMaker', 'Chase Homebuyer Grant (eligible areas)', 'Large branch footprint', 'you already bank with Chase'],
+      rocket: ['Rocket Mortgage', 'A fast online process and many loan types.', '3% conventional, 3.5% FHA', 'Occasional closing credits', 'Speed; fully digital', 'speed matters most'],
+      boa: ['Bank of America', 'Affordable Loan Solution and down payment grants in select markets.', 'As little as 3%', 'Down payment grant (select markets)', 'Relationship discounts', 'you have Preferred Rewards'],
+      wf: ['Wells Fargo', 'Dream. Plan. Home. closing cost credit.', 'As little as 3%', 'Closing cost credit', 'Large footprint', 'you want a closing-cost credit']
+    },
+    smb: {
+      pnc: ['PNC Business Lending', 'A Preferred SBA Lender offering SBA 7(a) and 504 loans and owner-occupied commercial real estate financing.', 'As little as 10% down with SBA 504', 'Business banker guidance', 'Preferred SBA Lender', 'you want an SBA lender with a local business banker'],
+      wf: ['Wells Fargo', 'SBA and commercial real estate lending.', 'SBA 7(a) and 504', 'Online SBA application', 'Large footprint', 'you’re in Wells Fargo’s footprint'],
+      chase: ['Chase for Business', 'Commercial real estate and SBA loans.', 'SBA and conventional CRE', 'Business banker', 'Large branch network', 'you already bank with Chase'],
+      usbank: ['U.S. Bank', 'An active SBA lender with CRE loans.', 'SBA 7(a) and 504', 'SBA specialists', 'Strong in the Midwest', 'you’re in U.S. Bank’s footprint']
+    }
+  },
+  pages: {
+    default: { path: '/personal-banking/home-lending/mortgages', t: 'Mortgages & Home Loans | PNC', js: true },
+    smb: { path: '/small-business/lending/sba-loans', t: 'SBA Loans | PNC' }
+  },
+  article: { path: '/insights/personal-finance/borrow/how-much-house-can-i-afford', t: 'How Much House Can I Afford?' },
+  ppages: {
+    student: { path: '/insights/college/build-credit-to-buy-a-home-someday', t: 'In College? Steps Now That Help You Buy a Home Later', line: 'PNC’s guide for students lists credit-building steps that help with a future mortgage.' },
+    starter: { path: '/insights/first-job/saving-for-your-first-home', t: 'Saving for Your First Home on a First Salary', line: 'PNC’s first-job guide estimates how long it takes to save with a Growth account.' },
+    fthb: { path: '/insights/home/first-time-homebuyer-guide', t: 'First-Time Homebuyer Guide: Grants, Down Payments and Steps', line: 'PNC’s first-time buyer guide explains how the Homebuyer Grant can combine with state assistance.' },
+    ema: { path: '/insights/wealth/jumbo-loans-and-relationship-pricing', t: 'Jumbo Loans: Cash, Credit or Keep Investing?', line: 'PNC’s guide for high earners covers jumbo financing alongside PNC Investments.' },
+    smb: { path: '/small-business/insights/buying-a-building-for-your-business', t: 'Buying a Building for Your Business: SBA 504 vs 7(a)', line: 'PNC’s small business guide compares SBA 504 and 7(a) for owner-occupied buildings.' }
+  },
+  points: {
+    default: [['You may not need 20% down', 'Conventional loans can go as low as 3% for eligible first-time buyers, FHA 3.5%, and VA or USDA 0%. Less than 20% usually means mortgage insurance.'], ['Budget beyond the down payment', 'Plan for closing costs (often 2% to 5%), moving costs and a cushion after closing.'], ['Assistance programs', 'State housing agencies, cities and some lenders offer grants or forgivable loans, usually with income limits.']],
+    smb: [['SBA 504 vs 7(a)', '504 loans finance owner-occupied real estate with as little as 10% down; 7(a) is more flexible but often costs more.'], ['Owner-occupancy rules', 'You typically need to occupy at least 51% of the building to qualify.'], ['What lenders look at', 'Two to three years of business tax returns, cash flow, and the property appraisal.']]
+  },
+  pp: {
+    student: 'In college, the best prep is building credit and a savings habit. A mortgage comes later.',
+    starter: 'On a first salary, focus on a 620+ credit score and a starter fund for a 3% to 5% down payment.',
+    fthb: 'In Ohio, the Ohio Housing Finance Agency and some lender grants can stack to cover a big share of closing costs.',
+    ema: 'With investments, compare a jumbo loan against pledging assets before paying cash.',
+    smb: 'Owning your building can turn rent into equity, and SBA 504 keeps the down payment low.'
+  },
+  steps: { default: ['Gather two years of W-2s, recent pay stubs, two months of bank statements and IDs.', 'Apply online for pre-approval.', 'Upload documents and get a pre-approval letter (often 1 to 3 days).', 'Ask about grants and assistance before making an offer.'], smb: ['Gather three years of business and personal tax returns and interim financials.', 'Get the purchase agreement or property details.', 'Talk with an SBA lender about 504 vs 7(a).', 'Submit the application and appraisal.'] },
+  pools: {
+    default: [
+      { id: 'nw', dom: 'nerdwallet.com', t: 'Best Mortgage Lenders for First-Time Home Buyers', type: 'affiliate', fmt: 'listicle', rel: .9, seo: .95, m: [['rocket', 'Best online experience'], ['chase', 'Best for grants'], ['boa', 'Best for low down payment'], ['pnc', 'Best for local loan officers']] },
+      { id: 'br', dom: 'bankrate.com', t: 'Best Mortgage Lenders of 2026', type: 'affiliate', fmt: 'listicle', rel: .84, seo: .9, m: [['rocket', 'Best overall'], ['boa', 'Best for assistance'], ['wf', 'Best big bank']], boost: [2, 'Best for down payment grants'] },
+      { id: 'jdp', dom: 'jdpower.com', t: 'U.S. Mortgage Origination Satisfaction Study', type: 'authority', fmt: 'review', rel: .72, seo: .7, m: [['rocket', 'Highest ranked'], ['chase', 'Above average'], ['pnc', 'Above average']] },
+      { id: 'rd', dom: 'reddit.com', path: '/r/FirstTimeHomeBuyer', t: 'Lender recommendations? Big bank vs. broker', type: 'social', fmt: 'thread', rel: .74, seo: .78, m: [['rocket', '~', 9, 'Rocket was fast but our loan officer changed twice.'], ['chase', '+', 5, 'Chase gave us their grant.'], ['boa', '+', 4, 'BofA’s grant covered our closing costs.']], boost: ['+', 6, 'PNC gave us the Homebuyer Grant, $5k toward closing. Our loan officer was local and responsive.'] },
+      { id: 'yt', dom: 'youtube.com', t: 'First-Time Home Buyer Grants Explained', type: 'social', fmt: 'video', rel: .64, seo: .72, m: [['boa', '+', 1, 'Bank of America has a down payment grant in some markets.'], ['chase', '+', 1, 'Chase has a homebuyer grant too.']], boost: ['+', 1, 'PNC’s Homebuyer Grant is up to $5,000 in eligible areas.'] },
+      { id: 'cfpb', dom: 'consumerfinance.gov', t: 'How much do you need for a down payment?', type: 'authority', fmt: 'explainer', rel: .86, seo: .8, m: [] },
+      { id: 'comp', dom: 'rocketmortgage.com', t: 'Get Approved Online', type: 'competitor', fmt: 'product', rel: .66, seo: .9, brand: 'rocket' }
+    ],
+    smb: [
+      { id: 'nw', dom: 'nerdwallet.com', t: 'Best SBA Lenders', type: 'affiliate', fmt: 'listicle', rel: .86, seo: .9, m: [['wf', 'Best for volume'], ['usbank', 'Best in the Midwest'], ['chase', 'Best big bank'], ['pnc', 'Best for 504 loans']] },
+      { id: 'fa', dom: 'forbes.com', path: '/advisor', t: 'Best Commercial Real Estate Loans', type: 'affiliate', fmt: 'listicle', rel: .8, seo: .8, m: [['chase', 'Best overall'], ['wf', 'Best for SBA'], ['usbank', 'Best for small loans']], boost: [2, 'Best for owner-occupied buildings'] },
+      { id: 'rd', dom: 'reddit.com', path: '/r/smallbusiness', t: 'SBA 504 to buy our building: who did you use?', type: 'social', fmt: 'thread', rel: .72, seo: .7, m: [['usbank', '+', 6, 'U.S. Bank did our 504, smooth.'], ['wf', '~', 4, 'Wells was slow.'], ['chase', '~', 3, 'Chase quoted us but we went elsewhere.']], boost: ['+', 5, 'PNC did our 504 and our business banker handled the CDC side.'] },
+      { id: 'sba', dom: 'sba.gov', t: '504 loans', type: 'authority', fmt: 'explainer', rel: .86, seo: .85, m: [] },
+      { id: 'comp', dom: 'wellsfargo.com', t: 'SBA Loans', type: 'competitor', fmt: 'product', rel: .64, seo: .82, brand: 'wf' }
+    ]
+  }
 },
 
-general_txn: {
-  prompt: 'I want to open a checking account online today. Which one has a good sign-up bonus right now, and how do I apply?',
-  implied: 'Ready to convert now. Wants a current promotion, and the answer needs to hand off to a live application.',
-  explicit: ['open online', 'today', 'sign-up bonus'],
-  inferred: ['High purchase intent', 'Rate and bonus sensitive', 'Needs fresh, dated information'],
-  fan: [
-    ['checking account bonus offers November 2026', 'freshness'],
-    ['open checking account online same day', 'howto'],
-    ['PNC checking account bonus', 'entity'],
-    ['Chase checking bonus requirements', 'entity'],
-    ['best bank bonuses this month', 'commercial'],
-    ['what do I need to open a bank account online', 'howto'],
-    ['bank near me open account', 'local'],
-    ['doctor of credit bank bonuses', 'community']
-  ],
-  src: [
-    { id: 'pncb', dom: 'pnc.com', path: '/personal-banking/banking/checking/offers', t: 'Virtual Wallet: current offer, terms and apply', type: 'owned', fmt: 'product', rel: .82, b: ['pnc'], issue: 'stale', date: 'Updated Jan 2025' },
-    { id: 'chase', dom: 'chase.com', path: '/personal/checking/coupon', t: 'Chase checking: new customer offer', type: 'competitor', fmt: 'product', rel: .84, b: ['chase'] },
-    { id: 'nw', dom: 'nerdwallet.com', t: 'Best Bank Bonuses and Promotions, November 2026', type: 'publisher', fmt: 'listicle', rel: .88, b: ['chase', 'wf', 'capone', 'pnc'] },
-    { id: 'doc', dom: 'doctorofcredit.com', t: 'Best Bank Account Bonuses', type: 'ugc', fmt: 'thread', rel: .74, b: ['chase', 'pnc', 'citi'] },
-    { id: 'wf', dom: 'wellsfargo.com', t: 'Everyday Checking: new account offer', type: 'competitor', fmt: 'product', rel: .7, b: ['wf'] },
-    { id: 'cfpb', dom: 'consumerfinance.gov', t: 'What do I need to open a bank account?', type: 'authority', fmt: 'howto', rel: .66, b: [] },
-    { id: 'pncg', dom: 'google.com', path: '/maps', t: 'PNC Bank branches near you', type: 'owned', fmt: 'local', rel: .6, b: ['pnc'] },
-    { id: 'capone', dom: 'capitalone.com', t: '360 Checking: open in 5 minutes', type: 'competitor', fmt: 'product', rel: .66, b: ['capone'] }
-  ],
-  steps: ['Pick an account and check the bonus terms (qualifying direct deposits and the deadline).', 'Have your SSN, a government ID, and a funding account ready.', 'Apply online. It usually takes 5 to 10 minutes.', 'Set up direct deposit before the promo window closes.'],
-  items: [
-    { b: 'chase', h: 'Chase Total Checking', t: 'Usually has a new-customer bonus that requires qualifying direct deposits within 90 days.', cta: 'Open at chase.com', src: ['chase', 'nw', 'doc'] },
-    { b: 'pnc', h: 'PNC Virtual Wallet', t: 'Periodically offers a bonus tied to qualifying direct deposits. Check pnc.com for the current offer and terms in your area.', cta: 'Apply at pnc.com', src: ['pncb', 'nw', 'doc', 'pncg'] },
-    { b: 'wf', h: 'Wells Fargo Everyday Checking', t: 'Runs seasonal new-account offers with direct deposit requirements.', cta: 'Open at wellsfargo.com', src: ['wf', 'nw'] },
-    { b: 'capone', h: 'Capital One 360 Checking', t: 'No bonus most months, but the fastest no-fee online opening.', cta: 'Open at capitalone.com', src: ['capone', 'nw'] }
-  ],
-  maxBrands: 2,
-  aeo: [
-    { lever: 'Technical', t: 'Freshness is a ranking factor', d: 'The PNC offers page shows a last-modified date from early 2025. For “right now” prompts, Gemini and Copilot heavily discount stale pages. Update it, set dateModified, and ping IndexNow.' },
-    { lever: 'Content', t: 'Make the offer extractable', d: 'Put the bonus amount, requirements, and expiration in plain HTML near the top, with Offer schema. Models will not dig through accordions.' },
-    { lever: 'Off-site', t: 'Feed the deal trackers', d: 'Doctor of Credit and NerdWallet’s monthly bonus lists are top-cited for transactional bonus prompts. Brief them on every promotion launch.' }
-  ]
+/* ====================== WEALTH MANAGEMENT ====================== */
+wealth: {
+  name: 'Wealth Management', short: 'Wealth', ic: 'chart',
+  segOf: { smb: 'smb' },
+  cat: { default: ['financial advisor', 'financial advisors'], smb: ['small business retirement plan', 'small business retirement plans'] },
+  feeword: 'fees and minimums', localQ: 'PNC Investments advisor',
+  trustQ: 'how to check a financial advisor FINRA BrokerCheck',
+  cols: ['Minimum to start', 'How advice works', 'Standout'],
+  schemaType: 'FinancialService',
+  faqQ: ['Is there a minimum to work with an advisor?', 'How are PNC Investments advisors paid?'],
+  compare: { default: ['pnc', 'fidelity', 'schwab'], smb: ['pnc', 'fidelity', 'chase'] },
+  prompts: {
+    info: ['When does it make sense to work with a financial advisor?', 'How should a college student start investing with a little money?', 'I just started my 401(k). Should I also open a Roth IRA or work with an advisor?', 'Should I keep investing or put everything toward my down payment?', 'I have about $180k saved and my income keeps growing. When should I hire a financial advisor?', 'What retirement plan options do small business owners have, like a SEP IRA or 401(k)?'],
+    rec: ['What are the best banks or firms for financial advice?', 'What’s the best place for a college student to start investing?', 'What’s the best place to open a Roth IRA for a beginner?', 'Where’s the best place to keep my down payment savings and still earn something?', 'What’s the best bank for premium perks and wealth management in one place?', 'Which banks are best for small business owners who want a 401(k) for employees and personal wealth advice?'],
+    compare: ['PNC Investments vs Fidelity vs Schwab for financial advice?', 'PNC Investments vs Fidelity vs Schwab for a student starting to invest?', 'PNC vs Fidelity vs Schwab for opening my first Roth IRA?', 'PNC vs Fidelity vs Schwab for parking my down payment savings?', 'PNC vs Fidelity vs Schwab for advice with about $180k invested?', 'PNC vs Fidelity vs Chase for a small business 401(k) and owner advice?'],
+    txn: ['I want to schedule a meeting with a financial advisor this month. Who should I contact?', 'How do I open my first investment account today?', 'I want to open a Roth IRA today. Where should I do it?', 'Where should I open an account for my down payment savings today?', 'I want to meet with a financial advisor at a bank near me in Philadelphia this month. Who should I contact?', 'I want to set up a 401(k) for my 14 employees. Who should I talk to?']
+  },
+  products: {
+    default: {
+      pnc: ['PNC Investments', 'Advisors in PNC branches, connected to your PNC banking, with a path to PNC Private Bank as assets grow.', 'Varies by service', 'Advisor-led planning in branch or virtual', 'Connected to your PNC banking and lending', 'you want advice connected to your bank relationship'],
+      fidelity: ['Fidelity', 'Low-cost investing with hybrid advisory options.', '$0 for self-directed', 'Robo, hybrid or advisor', 'Low costs', 'you want low-cost investing'],
+      schwab: ['Charles Schwab', 'Robo portfolios with access to certified planners.', '$0 self-directed; varies for advice', 'Robo plus planners', 'Planning access', 'you want robo plus a planner'],
+      boa: ['Merrill (Bank of America)', 'Merrill advisors integrated with Preferred Rewards.', 'Varies', 'Advisor-led', 'Preferred Rewards tie-in', 'you bank with Bank of America'],
+      chase: ['J.P. Morgan Wealth Management', 'Advisors in Chase branches plus self-directed investing.', '$0 self-directed', 'Advisor-led or digital', 'Chase branch access', 'you bank with Chase']
+    },
+    smb: {
+      pnc: ['PNC for business owners', 'Employee retirement plans, business banking and personal wealth advice in one relationship, with PNC Private Bank as you grow.', 'Varies by plan size', 'Business banker plus wealth advisor', 'One relationship for business and personal wealth', 'you want business and personal finances coordinated'],
+      fidelity: ['Fidelity Small Business 401(k)', 'A well-known 401(k) provider with low-cost options.', 'Varies', 'Plan specialists', 'Recordkeeping scale', 'you want a standalone 401(k)'],
+      chase: ['J.P. Morgan for business owners', 'Business banking with J.P. Morgan advisors.', 'Varies', 'Advisor-led', 'Chase business tie-in', 'you bank with Chase'],
+      schwab: ['Schwab', 'SEP IRA and solo 401(k) accounts for owners.', '$0', 'Self-directed or advisor', 'Low-cost SEP IRA', 'you want a simple SEP IRA']
+    }
+  },
+  pages: {
+    default: { path: '/personal-banking/investments', t: 'PNC Investments | Financial Advice' },
+    smb: { path: '/small-business/retirement-plans', t: 'Retirement Plans for Business Owners | PNC', js: true }
+  },
+  article: { path: '/insights/personal-finance/invest/do-you-need-a-financial-advisor', t: 'Do You Need a Financial Advisor?' },
+  ppages: {
+    student: { path: '/insights/college/investing-basics-for-students', t: 'Investing Basics for College Students', line: 'PNC’s student guide explains starting with small automatic contributions.' },
+    starter: { path: '/insights/first-job/401k-vs-roth-ira-first-job', t: '401(k) vs Roth IRA at Your First Job', line: 'PNC’s first-job guide explains the order of operations: employer match, emergency fund, then a Roth IRA.' },
+    fthb: { path: '/insights/home/invest-or-save-for-down-payment', t: 'Invest or Save for a Down Payment?', line: 'PNC’s home-saver guide compares savings and short-term options for a down payment fund.' },
+    ema: { path: '/insights/wealth/when-to-hire-a-financial-advisor', t: 'When to Hire a Financial Advisor: Thresholds and Triggers', line: 'PNC’s guide for growing wealth covers RSUs, tax planning and when advice pays for itself.' },
+    smb: { path: '/small-business/insights/retirement-plans-for-small-business', t: 'Retirement Plans for Small Business Owners', line: 'PNC’s small business guide compares SEP IRA, SIMPLE IRA and 401(k) for teams of 10 to 25.' }
+  },
+  points: {
+    default: [['When advice helps', 'Common triggers are equity compensation, a big tax bill, competing goals or a major life event. Many people consider advice at $100k to $250k invested.'], ['How advisors are paid', 'Fee-only advisors charge a flat or percent-of-assets fee; commission-based advisors are paid on products. Ask whether they act as a fiduciary.'], ['Check credentials', 'Look up any advisor on FINRA BrokerCheck or the SEC’s adviser search.']],
+    smb: [['Plan options', 'SEP IRAs are simple, SIMPLE IRAs suit small teams, and a 401(k) offers the highest limits and most flexibility.'], ['Cost and admin', 'A 401(k) has more admin but tax credits can offset startup costs for small employers.'], ['Owner planning', 'Pair the company plan with personal planning for taxes and an eventual exit.']]
+  },
+  pp: {
+    student: 'As a student, starting with small automatic investments matters more than picking the perfect fund.',
+    starter: 'At a first job, capture the full 401(k) match first, then consider a Roth IRA.',
+    fthb: 'Money you need within a year or two usually belongs in savings, not stocks.',
+    ema: 'With equity compensation and a growing balance, advice on taxes and RSU timing can pay for itself.',
+    smb: 'With 14 employees, a 401(k) can help retention and startup tax credits can offset costs.'
+  },
+  steps: { default: ['Shortlist two or three advisors and look each up on FINRA BrokerCheck.', 'Book online or call. Most firms offer intro meetings within a week.', 'Bring recent statements, your equity comp details and your top three goals.', 'Ask how they’re paid and whether they act as a fiduciary.'], smb: ['Decide between SEP IRA, SIMPLE IRA and 401(k).', 'Gather employee census data and payroll details.', 'Meet with a provider to compare fees and services.', 'Set up payroll integration and enroll employees.'] },
+  pools: {
+    default: [
+      { id: 'inv', dom: 'investopedia.com', t: 'When Should You Hire a Financial Advisor?', type: 'affiliate', fmt: 'explainer', rel: .88, seo: .92, m: [['fidelity', 'Example: hybrid advice'], ['schwab', 'Example: robo plus planner']] },
+      { id: 'nw', dom: 'nerdwallet.com', t: 'Best Financial Advisors and Wealth Management Firms', type: 'affiliate', fmt: 'listicle', rel: .84, seo: .88, m: [['fidelity', 'Best overall'], ['schwab', 'Best for planning'], ['boa', 'Best for bank integration'], ['chase', 'Best for branch access']], boost: [3, 'Best for banking and advice in one place'] },
+      { id: 'rd', dom: 'reddit.com', path: '/r/financialindependence', t: 'At what net worth did you hire an advisor?', type: 'social', fmt: 'thread', rel: .72, seo: .74, m: [['fidelity', '+', 10, 'Fidelity’s planners are solid and cheap.'], ['schwab', '+', 8, 'Schwab Intelligent Portfolios Premium was worth it.'], ['boa', '~', 3, 'Merrill pushed products on me.']], boost: ['+', 4, 'A PNC advisor helped with RSUs and our mortgage at the same time. Being under one roof helped.'] },
+      { id: 'yt', dom: 'youtube.com', t: 'Do You Need a Financial Advisor? (Fee-Only vs Bank)', type: 'social', fmt: 'video', rel: .62, seo: .7, m: [['fidelity', '+', 1, 'Fidelity is great for low cost.'], ['schwab', '+', 1, 'Schwab if you want a planner.']], boost: ['+', 1, 'Bank advisors like PNC can make sense if you want banking and investing together.'] },
+      { id: 'finra', dom: 'finra.org', t: 'Choosing an investment professional', type: 'authority', fmt: 'explainer', rel: .82, seo: .8, m: [] },
+      { id: 'comp', dom: 'schwab.com', t: 'Schwab Wealth Advisory', type: 'competitor', fmt: 'product', rel: .6, seo: .85, brand: 'schwab' }
+    ],
+    smb: [
+      { id: 'nw', dom: 'nerdwallet.com', t: 'Best 401(k) Providers for Small Businesses', type: 'affiliate', fmt: 'listicle', rel: .86, seo: .9, m: [['fidelity', 'Best overall'], ['schwab', 'Best low cost'], ['chase', 'Best for banking tie-in']], boost: [2, 'Best for owners who want a banker and advisor'] },
+      { id: 'fa', dom: 'forbes.com', path: '/advisor', t: 'Best SEP IRA and Solo 401(k) Providers', type: 'affiliate', fmt: 'listicle', rel: .78, seo: .8, m: [['fidelity', 'Best overall'], ['schwab', 'Best for SEP IRA']] },
+      { id: 'rd', dom: 'reddit.com', path: '/r/smallbusiness', t: 'Setting up a 401k for 14 employees, who did you use?', type: 'social', fmt: 'thread', rel: .72, seo: .7, m: [['fidelity', '+', 6, 'Fidelity, easy payroll sync.'], ['schwab', '~', 3, 'Schwab works for SEP but not 401k for us.']], boost: ['+', 4, 'Our PNC business banker set up the 401(k) and connected me with a wealth advisor for my own planning.'] },
+      { id: 'dol', dom: 'dol.gov', t: 'Choosing a retirement plan for your small business', type: 'authority', fmt: 'explainer', rel: .84, seo: .82, m: [] },
+      { id: 'comp', dom: 'fidelity.com', t: 'Small Business Retirement Plans', type: 'competitor', fmt: 'product', rel: .62, seo: .85, brand: 'fidelity' }
+    ]
+  }
 },
 
-/* ======================= COLLEGE STUDENT ======================= */
-student_info: {
-  prompt: 'What should a college student look for in a bank account?',
-  implied: 'Opening a first independent account. Worried about fees and overdrafts on a small, irregular income. Will likely ask “which bank?” next.',
-  explicit: ['college student', 'bank account'],
-  inferred: ['Low, irregular balance', 'Overdraft risk', 'Wants to send money to friends easily', 'May be near campus ATMs'],
-  fan: [
-    ['what to look for in a student bank account', 'explainer'],
-    ['student checking account no monthly fee', 'commercial'],
-    ['how to avoid overdraft fees in college', 'howto'],
-    ['student bank account Zelle Venmo', 'explainer'],
-    ['banks near Penn State campus', 'local'],
-    ['PNC Virtual Wallet Student', 'entity'],
-    ['CFPB college banking guide', 'trust'],
-    ['reddit first bank account college', 'community']
-  ],
-  src: [
-    { id: 'cfpb', dom: 'consumerfinance.gov', t: 'Choosing a college bank account', type: 'authority', fmt: 'explainer', rel: .9, b: [] },
-    { id: 'inv', dom: 'investopedia.com', t: 'How to Choose a Student Bank Account', type: 'publisher', fmt: 'explainer', rel: .84, b: ['chase', 'capone'] },
-    { id: 'pncs', dom: 'pnc.com', path: '/personal-banking/banking/checking/virtual-wallet-student', t: 'Virtual Wallet® Student', type: 'owned', fmt: 'product', rel: .74, b: ['pnc'] },
-    { id: 'pnci', dom: 'pnc.com', path: '/insights/personal-finance/college', t: 'Banking tips for college students', type: 'owned', fmt: 'explainer', rel: .72, b: ['pnc'] },
-    { id: 'yt', dom: 'youtube.com', t: 'Banking 101 for college students (video)', type: 'ugc', fmt: 'video', rel: .64, b: ['chase'] },
-    { id: 'rd', dom: 'reddit.com', path: '/r/college', t: 'What bank do you use in college?', type: 'ugc', fmt: 'thread', rel: .66, b: ['chase', 'capone', 'pnc'] },
-    { id: 'gmb', dom: 'google.com', path: '/maps', t: 'Banks & ATMs near Penn State, University Park', type: 'owned', fmt: 'local', rel: .55, b: ['pnc'] },
-    { id: 'chase', dom: 'chase.com', t: 'Chase College Checking℠', type: 'competitor', fmt: 'product', rel: .58, b: ['chase'] }
-  ],
-  items: [
-    { b: null, h: 'No monthly fee while you’re in school', t: 'Many banks waive fees for students, often until graduation or for a set number of years. Read how “student status” is verified and when the waiver ends.', src: ['cfpb', 'inv', 'pncs'] },
-    { b: null, h: 'Overdraft protection that fits a tight budget', t: 'Look for low-balance alerts, no or low overdraft fees, and a grace period to fix a negative balance.', src: ['cfpb', 'pnci'] },
-    { b: null, h: 'A strong app plus Zelle', t: 'Mobile deposit, instant alerts, and Zelle make splitting rent and dinner easier.', src: ['inv', 'yt', 'rd'] },
-    { b: null, h: 'ATMs where you actually are', t: 'Check for fee-free ATMs on or near campus and in your hometown.', src: ['gmb', 'rd'] },
-    { b: 'pnc', h: 'Example: PNC Virtual Wallet Student', t: 'No monthly service charge while you’re a student, budgeting tools built in, and Low Cash Mode to help avoid overdraft fees. It also links easily to a parent’s PNC account.', src: ['pncs', 'pnci', 'rd', 'gmb'] },
-    { b: 'chase', h: 'Example: Chase College Checking', t: 'No monthly fee for up to five years while in school, with a large ATM network.', src: ['chase', 'inv', 'yt'] },
-    { b: 'capone', h: 'Example: Capital One 360 Checking', t: 'No fees at all, which works for students who don’t need branches.', src: ['inv', 'rd'] }
-  ],
-  maxBrands: 2,
-  aeo: [
-    { lever: 'Content', t: 'Answer the checklist question', d: 'Info prompts reward checklist-style explainers. A PNC Insights “student bank account checklist” with FAQ schema can become the cited source, with Virtual Wallet Student shown as the example.' },
-    { lever: 'Off-site', t: 'Get into campus community content', d: 'Students trust r/college and YouTube creators. Campus ambassador content and university financial-literacy partnerships feed both.' },
-    { lever: 'Technical', t: 'Claim every campus location', d: 'Gemini adds a local query for students. Complete Google Business Profiles for on-campus PNC branches and ATMs.' }
-  ]
-},
-
-student_rec: {
-  prompt: 'What’s the best bank account for a college student with no fees?',
-  implied: 'Wants a short, trustworthy pick list. Fee-free is the main filter, and an easy app is the tie-breaker.',
-  explicit: ['college student', 'no fees'],
-  inferred: ['Low balance', 'Parents may co-sign or transfer money', 'Mobile-first'],
-  fan: [
-    ['best student checking accounts 2026', 'commercial'],
-    ['best bank for college students no fees', 'commercial'],
-    ['student checking account comparison', 'compare'],
-    ['PNC Virtual Wallet Student review', 'entity'],
-    ['reddit best bank for college student', 'community'],
-    ['bank near Penn State', 'local'],
-    ['student bank account sign up bonus', 'freshness']
-  ],
-  src: [
-    { id: 'nw', dom: 'nerdwallet.com', t: 'Best Student Checking Accounts', type: 'publisher', fmt: 'listicle', rel: .9, b: ['capone', 'chase', 'discover', 'pnc'] },
-    { id: 'fa', dom: 'forbes.com', path: '/advisor', t: 'Best Student Bank Accounts of 2026', type: 'publisher', fmt: 'listicle', rel: .84, b: ['chase', 'capone', 'boa'] },
-    { id: 'cs', dom: 'cnbc.com', path: '/select', t: 'Best checking accounts for college students', type: 'publisher', fmt: 'listicle', rel: .78, b: ['capone', 'discover', 'chase'] },
-    { id: 'pncs', dom: 'pnc.com', path: '/personal-banking/banking/checking/virtual-wallet-student', t: 'Virtual Wallet® Student', type: 'owned', fmt: 'product', rel: .7, b: ['pnc'] },
-    { id: 'rd', dom: 'reddit.com', path: '/r/college', t: 'Best bank for a broke college student?', type: 'ugc', fmt: 'thread', rel: .76, b: ['capone', 'discover', 'chase'] },
-    { id: 'tk', dom: 'tiktok.com', t: '“Bank accounts I wish I had in college”', type: 'ugc', fmt: 'video', rel: .52, b: ['sofi', 'capone'] },
-    { id: 'chase', dom: 'chase.com', t: 'Chase College Checking℠', type: 'competitor', fmt: 'product', rel: .6, b: ['chase'] },
-    { id: 'pnci', dom: 'pnc.com', path: '/insights/personal-finance/college', t: 'Banking tips for college students', type: 'owned', fmt: 'explainer', rel: .55, b: ['pnc'] }
-  ],
-  items: [
-    { b: 'capone', h: 'Capital One 360 Checking', t: 'No monthly fees, no minimums, no overdraft fees, and a top-rated app. A favorite on Reddit.', src: ['nw', 'cs', 'rd', 'tk'] },
-    { b: 'chase', h: 'Chase College Checking', t: 'No monthly fee for up to five years while enrolled, plus a large branch and ATM network.', src: ['chase', 'fa', 'nw', 'rd'] },
-    { b: 'pnc', h: 'PNC Virtual Wallet Student', t: 'No monthly service charge while you’re a student, with checking and savings bundled. Low Cash Mode and budgeting tools fit a tight budget, and PNC has branches and ATMs on many campuses.', src: ['pncs', 'nw', 'pnci'] },
-    { b: 'discover', h: 'Discover Cashback Debit', t: 'No fees and cash back on debit purchases.', src: ['cs', 'rd'] },
-    { b: 'boa', h: 'Bank of America Advantage SafeBalance', t: 'Monthly fee waived for students under 24, and no overdraft fees because it can’t overdraw.', src: ['fa'] },
-    { b: 'sofi', h: 'SoFi Checking & Savings', t: 'No account fees, early paycheck access, and a high APY with direct deposit.', src: ['tk'] }
-  ],
-  close: 'If your parents already bank somewhere, check whether that bank has a student account. Linking accounts makes transfers instant.',
-  maxBrands: 4,
-  aeo: [
-    { lever: 'Off-site', t: 'Make the NerdWallet and Forbes lists', d: '“Best” prompts are answered almost entirely from publisher roundups. PNC appears on some and not others, which is the main source of run-to-run variability.' },
-    { lever: 'Content', t: 'Lead with the family-banking angle', d: 'This persona’s memory says “parents bank with PNC.” Content about linking a student account to a parent’s account gives models a reason to personalize toward PNC.' },
-    { lever: 'Off-site', t: 'Short-form video', d: 'TikTok and YouTube are increasingly retrieved for student prompts. Creator partnerships around first-account tips can shift what gets cited.' }
-  ]
-},
-
-student_compare: {
-  prompt: 'Compare PNC Virtual Wallet Student vs Chase College Checking vs Bank of America for a college student.',
-  implied: 'Down to three options, possibly influenced by parents (PNC) and campus presence. Wants a clear table and a recommendation.',
-  explicit: ['PNC Virtual Wallet Student', 'Chase College Checking', 'Bank of America'],
-  inferred: ['Branch presence on campus matters', 'Wants a verdict, not only a table'],
-  named: ['pnc', 'chase', 'boa'],
-  fan: [
-    ['PNC Virtual Wallet Student vs Chase College Checking', 'compare'],
-    ['PNC Virtual Wallet Student monthly fee', 'entity'],
-    ['Chase College Checking fee after graduation', 'entity'],
-    ['Bank of America Advantage SafeBalance student', 'entity'],
-    ['student checking overdraft policy comparison', 'compare'],
-    ['which banks have ATMs at Penn State', 'local'],
-    ['reddit PNC vs Chase college', 'community']
-  ],
-  src: [
-    { id: 'pncs', dom: 'pnc.com', path: '/personal-banking/banking/checking/virtual-wallet-student', t: 'Virtual Wallet® Student: features and fees', type: 'owned', fmt: 'product', rel: .86, b: ['pnc'] },
-    { id: 'chase', dom: 'chase.com', t: 'Chase College Checking℠', type: 'competitor', fmt: 'product', rel: .84, b: ['chase'] },
-    { id: 'boa', dom: 'bankofamerica.com', t: 'Advantage SafeBalance Banking®', type: 'competitor', fmt: 'product', rel: .8, b: ['boa'] },
-    { id: 'br', dom: 'bankrate.com', t: 'Best student checking accounts compared', type: 'publisher', fmt: 'compare', rel: .78, b: ['chase', 'boa', 'pnc'] },
-    { id: 'gb', dom: 'gobankingrates.com', t: 'Chase vs. Bank of America for students', type: 'publisher', fmt: 'compare', rel: .7, b: ['chase', 'boa'] },
-    { id: 'rd', dom: 'reddit.com', path: '/r/PennStateUniversity', t: 'PNC or Chase for school?', type: 'ugc', fmt: 'thread', rel: .66, b: ['pnc', 'chase'] },
-    { id: 'gmb', dom: 'google.com', path: '/maps', t: 'PNC Bank: HUB-Robeson Center ATM', type: 'owned', fmt: 'local', rel: .52, b: ['pnc'] }
-  ],
-  cols: ['Monthly fee', 'Overdraft approach', 'Best for'],
-  items: [
-    { b: 'pnc', h: 'PNC Virtual Wallet Student', cells: ['None while a student', 'Low Cash Mode: alerts plus extra time to fix a negative balance', 'Built-in savings and budgeting; easy links to a parent’s PNC account'], src: ['pncs', 'br', 'rd', 'gmb'] },
-    { b: 'chase', h: 'Chase College Checking', cells: ['None for up to 5 years while enrolled', 'Overdraft assist for small amounts', 'Big ATM network; frequent student bonus'], src: ['chase', 'br', 'gb'] },
-    { b: 'boa', h: 'BofA Advantage SafeBalance', cells: ['Waived for students under 24', 'No overdrafts (transactions decline)', 'Students who want zero overdraft risk'], src: ['boa', 'gb', 'br'] }
-  ],
-  verdict: { pnc: 'If your family already banks with PNC and you want savings and budgeting built in, PNC Virtual Wallet Student is the most complete package.', chase: 'If a sign-up bonus and ATM reach matter most, Chase has the edge.', boa: 'If you never want to risk overdrafting, BofA SafeBalance is the simplest.' },
-  maxBrands: 3,
-  aeo: [
-    { lever: 'Content', t: 'Publish the fee facts plainly', d: 'In head-to-heads, models pull fees and waiver rules from product pages. Keep Virtual Wallet Student’s eligibility, fee, and post-graduation conversion rules in crawlable HTML.' },
-    { lever: 'Technical', t: 'Add FinancialProduct schema', d: 'Structured fee and feature data helps Gemini build comparison tables accurately.' },
-    { lever: 'Measurement', t: 'Audit the verdict, not just the mention', d: 'PNC always appears when named. The KPI is whether the verdict line favors PNC for the right reason.' }
-  ]
-},
-
-student_txn: {
-  prompt: 'How do I open a student checking account online today? I’m 19 and my parents bank with PNC.',
-  implied: 'Ready to open now. The family relationship is a strong signal toward PNC, but the model needs a clear, current application path.',
-  explicit: ['open online today', '19', 'parents bank with PNC'],
-  inferred: ['High intent toward PNC', 'May need a parent as joint owner', 'Wants to finish on mobile'],
-  named: ['pnc'],
-  fan: [
-    ['open PNC Virtual Wallet Student online', 'entity'],
-    ['PNC student account requirements age 19', 'howto'],
-    ['add student to parent PNC account', 'howto'],
-    ['what documents to open student bank account', 'howto'],
-    ['PNC branch near State College', 'local'],
-    ['student checking bonus 2026', 'freshness']
-  ],
-  src: [
-    { id: 'pncs', dom: 'pnc.com', path: '/personal-banking/banking/checking/virtual-wallet-student', t: 'Virtual Wallet® Student: apply online', type: 'owned', fmt: 'product', rel: .92, b: ['pnc'] },
-    { id: 'pnch', dom: 'pnc.com', path: '/help/open-account', t: 'How to open an account: what you’ll need', type: 'owned', fmt: 'howto', rel: .8, b: ['pnc'], issue: 'js' },
-    { id: 'gmb', dom: 'google.com', path: '/maps', t: 'PNC Bank: State College branches', type: 'owned', fmt: 'local', rel: .6, b: ['pnc'] },
-    { id: 'cfpb', dom: 'consumerfinance.gov', t: 'What do I need to open a bank account?', type: 'authority', fmt: 'howto', rel: .7, b: [] },
-    { id: 'nw', dom: 'nerdwallet.com', t: 'Best Student Checking Accounts', type: 'publisher', fmt: 'listicle', rel: .58, b: ['capone', 'chase', 'pnc'] },
-    { id: 'chase', dom: 'chase.com', t: 'Chase College Checking℠: open online', type: 'competitor', fmt: 'product', rel: .5, b: ['chase'] }
-  ],
-  steps: ['Go to pnc.com → Virtual Wallet Student → Apply Now (or use the PNC mobile app).', 'Have your SSN, a government ID, your school name, and expected graduation date.', 'Students over 18 can apply alone. A parent can be added as a joint owner, and accounts can be linked for instant transfers.', 'Fund the account, download the app, and turn on Low Cash Mode alerts.'],
-  items: [
-    { b: 'pnc', h: 'PNC Virtual Wallet Student', t: 'Since your parents bank with PNC, linking accounts makes transfers instant. No monthly service charge while you’re a student.', cta: 'Apply at pnc.com', src: ['pncs', 'pnch', 'gmb'] },
-    { b: 'chase', h: 'Chase College Checking', t: 'An alternative if you want a new-student bonus.', cta: 'Open at chase.com', src: ['chase', 'nw'] },
-    { b: 'capone', h: 'Capital One 360 Checking', t: 'Fully online with no fees.', cta: 'Open at capitalone.com', src: ['nw'] }
-  ],
-  maxBrands: 2,
-  aeo: [
-    { lever: 'Technical', t: 'Unblock the “how to open” help page', d: 'The requirements page is rendered client-side, so most retrievers can’t read the document list and fall back to the CFPB’s generic guide. Server-render it.' },
-    { lever: 'Content', t: 'Answer the family question', d: 'Add a clear “Can my parent be on my student account?” FAQ. It directly matches how this persona prompts.' },
-    { lever: 'Measurement', t: 'Track handoff links', d: 'Tag pnc.com application URLs so AI-referred sessions (chatgpt.com, gemini.google.com, copilot.microsoft.com and claude.ai referrers) can be measured to completion.' }
-  ]
-},
-
-/* ======================= THE STARTER ======================= */
-starter_info: {
-  prompt: 'I just started my first real job. How should I split my paycheck between checking, savings, and paying off student loans?',
-  implied: 'Wants a simple system. Underneath: fear of getting it wrong, a first emergency fund, and whether to prioritize loans or saving. They’re primed for a bank that automates this.',
-  explicit: ['first job', 'paycheck split', 'student loans'],
-  inferred: ['Needs an emergency fund', 'Will open a 401(k) soon', 'Responds to automation and tools', 'Rent-burdened in a new city'],
-  fan: [
-    ['how to budget first paycheck', 'explainer'],
-    ['50/30/20 budget rule', 'explainer'],
-    ['emergency fund vs paying off student loans first', 'explainer'],
-    ['how much to save from each paycheck', 'howto'],
-    ['split direct deposit between checking and savings', 'howto'],
-    ['budgeting tools banks offer', 'commercial'],
-    ['reddit first job budget advice', 'community'],
-    ['student loan repayment options 2026', 'freshness']
-  ],
-  src: [
-    { id: 'cfpb', dom: 'consumerfinance.gov', t: 'Your money, your goals: making a budget', type: 'authority', fmt: 'explainer', rel: .86, b: [] },
-    { id: 'sa', dom: 'studentaid.gov', t: 'Repayment plans and how to choose', type: 'authority', fmt: 'explainer', rel: .78, b: [] },
-    { id: 'nw', dom: 'nerdwallet.com', t: 'The 50/30/20 Budget Rule Explained', type: 'publisher', fmt: 'explainer', rel: .88, b: [] },
-    { id: 'pnci', dom: 'pnc.com', path: '/insights/personal-finance/spend/first-job', t: 'Starting your first job? A money checklist', type: 'owned', fmt: 'explainer', rel: .76, b: ['pnc'] },
-    { id: 'pncv', dom: 'pnc.com', path: '/personal-banking/banking/checking/virtual-wallet', t: 'Virtual Wallet: Spend, Reserve and Growth', type: 'owned', fmt: 'product', rel: .58, b: ['pnc'] },
-    { id: 'rd', dom: 'reddit.com', path: '/r/personalfinance', t: 'Prime directive: how to handle your money', type: 'ugc', fmt: 'thread', rel: .82, b: ['ally', 'fidelity'] },
-    { id: 'yt', dom: 'youtube.com', t: 'How I budget my first salary (video)', type: 'ugc', fmt: 'video', rel: .6, b: ['sofi'] },
-    { id: 'inv', dom: 'investopedia.com', t: 'Should You Pay Off Student Loans or Save?', type: 'publisher', fmt: 'explainer', rel: .74, b: [] }
-  ],
-  items: [
-    { b: null, h: 'Start with a simple split', t: 'A common starting point is 50/30/20: about 50% to needs (rent, loans’ minimums), 30% to wants, and 20% to savings and extra debt payments. Adjust if rent is high.', src: ['nw', 'cfpb'] },
-    { b: null, h: 'Build a starter emergency fund first', t: 'Aim for $1,000 to $2,000 quickly, then grow toward 3 to 6 months of expenses in a separate savings account.', src: ['rd', 'cfpb', 'pnci'] },
-    { b: null, h: 'Then decide on loans vs. saving', t: 'Always pay the minimums. Put extra toward loans with higher interest rates (roughly 6% or more), and capture any 401(k) employer match before prepaying low-rate loans.', src: ['inv', 'sa', 'rd'] },
-    { b: null, h: 'Automate it', t: 'Split your direct deposit so savings happens before you see the money.', src: ['cfpb', 'pnci', 'yt'] },
-    { b: 'pnc', h: 'Tools that do this for you', t: 'Some banks build this structure in. PNC’s Virtual Wallet, for example, pairs a Spend account with Reserve (short-term) and Growth (savings) accounts and lets you set automatic transfers and savings goals.', src: ['pncv', 'pnci'] },
-    { b: 'ally', h: 'Savings “buckets”', t: 'Online banks like Ally let you split one savings account into labeled buckets.', src: ['rd'] },
-    { b: 'sofi', h: 'Vaults', t: 'SoFi’s “Vaults” offer a similar approach.', src: ['yt'] }
-  ],
-  maxBrands: 1,
-  aeo: [
-    { lever: 'Content', t: 'Be the framework, not the ad', d: 'Info prompts cite whoever explains the framework best. A PNC Insights “first paycheck” guide that teaches 50/30/20 and shows Virtual Wallet as the worked example earns a natural mention.' },
-    { lever: 'Content', t: 'Map product to job-to-be-done', d: 'Name Spend/Reserve/Growth in the persona’s words, like “emergency fund” and “paycheck split.” Models match concepts, not product names.' },
-    { lever: 'Off-site', t: 'Partner with authority', d: 'CFPB and studentaid.gov dominate. Financial wellness partnerships with employers and universities can surface PNC content alongside them.' }
-  ]
-},
-
-starter_rec: {
-  prompt: 'What’s the best first credit card to build credit after college?',
-  implied: 'Thin credit file, so approval odds matter more than rewards. Wants no annual fee and a path to a better card later.',
-  explicit: ['first credit card', 'build credit'],
-  inferred: ['Thin credit file', 'Approval odds anxiety', 'No annual fee', 'Will upgrade in 12 to 18 months'],
-  fan: [
-    ['best credit cards for building credit 2026', 'commercial'],
-    ['best first credit card after college', 'commercial'],
-    ['credit card for no credit history', 'commercial'],
-    ['no annual fee cash back card for beginners', 'commercial'],
-    ['PNC credit card for beginners', 'entity'],
-    ['reddit first credit card', 'community'],
-    ['how to build credit with a credit card', 'explainer']
-  ],
-  src: [
-    { id: 'nw', dom: 'nerdwallet.com', t: 'Best Credit Cards to Build Credit', type: 'publisher', fmt: 'listicle', rel: .92, b: ['discover', 'capone', 'chase'] },
-    { id: 'tpg', dom: 'thepointsguy.com', t: 'Best starter credit cards', type: 'publisher', fmt: 'listicle', rel: .8, b: ['chase', 'capone', 'citi'] },
-    { id: 'cs', dom: 'cnbc.com', path: '/select', t: 'Best credit cards for no credit', type: 'publisher', fmt: 'listicle', rel: .78, b: ['discover', 'capone'] },
-    { id: 'pncc', dom: 'pnc.com', path: '/personal-banking/banking/credit-cards', t: 'Compare PNC Credit Cards', type: 'owned', fmt: 'product', rel: .6, b: ['pnc'], issue: 'js' },
-    { id: 'pnci', dom: 'pnc.com', path: '/insights/personal-finance/borrow/build-credit', t: 'How to build credit with your first card', type: 'owned', fmt: 'explainer', rel: .64, b: ['pnc'] },
-    { id: 'rd', dom: 'reddit.com', path: '/r/CreditCards', t: 'What should be my first card? (2026 megathread)', type: 'ugc', fmt: 'thread', rel: .84, b: ['discover', 'capone', 'chase'] },
-    { id: 'cfpb', dom: 'consumerfinance.gov', t: 'How do I get and keep a good credit score?', type: 'authority', fmt: 'explainer', rel: .6, b: [] },
-    { id: 'capone', dom: 'capitalone.com', t: 'Quicksilver: cash back for good credit', type: 'competitor', fmt: 'product', rel: .58, b: ['capone'] }
-  ],
-  items: [
-    { b: 'discover', h: 'Discover it® Student / Secured', t: 'Often the top pick for a thin file: no annual fee, cash back, and first-year cashback match.', src: ['nw', 'cs', 'rd'] },
-    { b: 'capone', h: 'Capital One Quicksilver / QuicksilverOne', t: 'Flat cash back, prequalification without a hard pull, and automatic credit-line reviews.', src: ['capone', 'nw', 'cs', 'rd'] },
-    { b: 'chase', h: 'Chase Freedom Rise®', t: 'Built for people new to credit, especially if you already have a Chase checking account.', src: ['tpg', 'nw', 'rd'] },
-    { b: 'pnc', h: 'PNC Cash Unlimited® Visa Signature®', t: 'Unlimited 2% cash back with no annual fee. Applying as an existing PNC customer can help, and PNC’s credit-building content is a good companion.', src: ['pncc', 'pnci'] },
-    { b: 'citi', h: 'Citi Double Cash®', t: 'Up to 2% back. Better as a second card once you have some history.', src: ['tpg'] }
-  ],
-  close: 'Pay the full statement balance every month, keep utilization under 30%, and set up autopay. That matters more than which card you choose.',
-  maxBrands: 4,
-  aeo: [
-    { lever: 'Off-site', t: 'PNC is missing from the shortlists', d: 'Every top-cited source here is a publisher roundup or r/CreditCards, and none feature a PNC card. For this prompt, PNC visibility is mostly a PR and affiliate-partnership problem.' },
-    { lever: 'Technical', t: 'Make the card catalog readable', d: 'The PNC card comparison page is JavaScript-rendered. Even when retrieved, most models can’t extract rewards or fees.' },
-    { lever: 'Content', t: 'Build the “starter card” narrative', d: 'If a PNC card is right for new-to-credit customers, say so explicitly, with eligibility guidance, in plain HTML and FAQ schema.' }
-  ]
-},
-
-starter_compare: {
-  prompt: 'PNC Cash Unlimited vs Citi Double Cash vs Wells Fargo Active Cash: which 2% card is best?',
-  implied: 'Has decent credit now and has narrowed to flat 2% cards. Wants to know which wins on the details (redemption, intro APR, bank relationship).',
-  explicit: ['PNC Cash Unlimited', 'Citi Double Cash', 'Wells Fargo Active Cash', '2%'],
-  inferred: ['Values simplicity', 'May want an intro APR or balance transfer', 'Existing bank relationship could tip it'],
-  named: ['pnc', 'citi', 'wf'],
-  fan: [
-    ['PNC Cash Unlimited vs Citi Double Cash', 'compare'],
-    ['Wells Fargo Active Cash vs Citi Double Cash', 'compare'],
-    ['PNC Cash Unlimited Visa Signature review', 'entity'],
-    ['best flat rate 2% cash back card 2026', 'commercial'],
-    ['Wells Fargo Active Cash welcome bonus', 'freshness'],
-    ['reddit 2% cash back card comparison', 'community']
-  ],
-  src: [
-    { id: 'pncc', dom: 'pnc.com', path: '/personal-banking/banking/credit-cards/cash-unlimited', t: 'PNC Cash Unlimited® Visa Signature®', type: 'owned', fmt: 'product', rel: .84, b: ['pnc'] },
-    { id: 'citi', dom: 'citi.com', t: 'Citi Double Cash® Card', type: 'competitor', fmt: 'product', rel: .82, b: ['citi'] },
-    { id: 'wf', dom: 'wellsfargo.com', t: 'Active Cash® Card', type: 'competitor', fmt: 'product', rel: .82, b: ['wf'] },
-    { id: 'nw', dom: 'nerdwallet.com', t: 'Citi Double Cash vs. Wells Fargo Active Cash', type: 'publisher', fmt: 'compare', rel: .88, b: ['citi', 'wf'] },
-    { id: 'br', dom: 'bankrate.com', t: 'PNC Cash Unlimited review', type: 'publisher', fmt: 'review', rel: .72, b: ['pnc'] },
-    { id: 'tpg', dom: 'thepointsguy.com', t: 'Best 2% cash-back cards', type: 'publisher', fmt: 'listicle', rel: .76, b: ['citi', 'wf'] },
-    { id: 'rd', dom: 'reddit.com', path: '/r/CreditCards', t: 'Active Cash or Double Cash? Is the PNC one any good?', type: 'ugc', fmt: 'thread', rel: .66, b: ['citi', 'wf', 'pnc'] }
-  ],
-  cols: ['Rewards', 'Welcome offer / intro APR', 'Edge'],
-  items: [
-    { b: 'pnc', h: 'PNC Cash Unlimited', cells: ['Unlimited 2% cash back', 'Check pnc.com for current offer', 'Integrates with PNC Virtual Wallet; redeem into your PNC account'], src: ['pncc', 'br', 'rd'] },
-    { b: 'citi', h: 'Citi Double Cash', cells: ['Up to 2% (1% buy + 1% pay)', 'Long balance-transfer intro APR', 'Converts to ThankYou points'], src: ['citi', 'nw', 'tpg'] },
-    { b: 'wf', h: 'Wells Fargo Active Cash', cells: ['Unlimited 2% cash rewards', 'Cash welcome bonus + intro APR on purchases', 'Cell phone protection'], src: ['wf', 'nw', 'tpg'] }
-  ],
-  verdict: { pnc: 'If you already bank with PNC, Cash Unlimited is the simplest 2% card to manage alongside Virtual Wallet.', citi: 'For a balance transfer or points flexibility, Citi Double Cash wins.', wf: 'For a welcome bonus and purchase intro APR, Wells Fargo Active Cash is the strongest on paper.' },
-  maxBrands: 3,
-  aeo: [
-    { lever: 'Off-site', t: 'PNC is absent from third-party comparisons', d: 'Publishers compare Citi and Wells Fargo directly, while PNC appears only via its own page and a single review. Pitch PNC Cash Unlimited for inclusion in “best 2% card” roundups.' },
-    { lever: 'Content', t: 'Claim the relationship advantage', d: 'The model’s only PNC-specific edge is Virtual Wallet integration. Make that benefit explicit and quantifiable on the product page.' },
-    { lever: 'Technical', t: 'Keep offers structured and dated', d: 'Welcome offers change often. Use Offer schema with validThrough so models don’t quote expired terms.' }
-  ]
-},
-
-starter_txn: {
-  prompt: 'I want to apply for a no-annual-fee 2% cash back credit card today. Where should I apply?',
-  implied: 'Ready to apply. Wants an approval-friendly card and a direct link. Pre-qualification would reduce anxiety.',
-  explicit: ['apply today', 'no annual fee', '2% cash back'],
-  inferred: ['Wants prequalification without a hard pull', 'May prefer their existing bank', 'Mobile application'],
-  fan: [
-    ['apply 2% cash back credit card no annual fee', 'commercial'],
-    ['credit card prequalify no hard pull', 'howto'],
-    ['PNC Cash Unlimited apply', 'entity'],
-    ['Wells Fargo Active Cash apply', 'entity'],
-    ['best 2% card welcome bonus November 2026', 'freshness'],
-    ['PNC branch Pittsburgh', 'local']
-  ],
-  src: [
-    { id: 'pncc', dom: 'pnc.com', path: '/personal-banking/banking/credit-cards/cash-unlimited', t: 'PNC Cash Unlimited®: apply now', type: 'owned', fmt: 'product', rel: .84, b: ['pnc'] },
-    { id: 'pncp', dom: 'pnc.com', path: '/credit-cards/prequalify', t: 'See if you prequalify', type: 'owned', fmt: 'tool', rel: .72, b: ['pnc'], issue: 'js' },
-    { id: 'wf', dom: 'wellsfargo.com', t: 'Active Cash®: apply', type: 'competitor', fmt: 'product', rel: .86, b: ['wf'] },
-    { id: 'citi', dom: 'citi.com', t: 'Double Cash®: apply', type: 'competitor', fmt: 'product', rel: .76, b: ['citi'] },
-    { id: 'nw', dom: 'nerdwallet.com', t: 'Best 2% Cash Back Credit Cards', type: 'publisher', fmt: 'listicle', rel: .78, b: ['wf', 'citi'] },
-    { id: 'cfpb', dom: 'consumerfinance.gov', t: 'What is a hard vs. soft credit inquiry?', type: 'authority', fmt: 'explainer', rel: .55, b: [] },
-    { id: 'gmb', dom: 'google.com', path: '/maps', t: 'PNC Bank: Pittsburgh branches', type: 'owned', fmt: 'local', rel: .5, b: ['pnc'] }
-  ],
-  steps: ['Check whether the issuer offers prequalification (a soft pull won’t hurt your score).', 'Have your income, housing payment, and SSN ready.', 'Apply online or in the app. Decisions are often instant.', 'Set up autopay for the full statement balance.'],
-  items: [
-    { b: 'wf', h: 'Wells Fargo Active Cash', t: 'Unlimited 2% cash rewards, no annual fee, and a cash welcome bonus.', cta: 'Apply at wellsfargo.com', src: ['wf', 'nw'] },
-    { b: 'pnc', h: 'PNC Cash Unlimited Visa Signature', t: 'Unlimited 2% cash back and no annual fee. A good fit if you already bank with PNC.', cta: 'Apply at pnc.com', src: ['pncc', 'pncp', 'gmb'] },
-    { b: 'citi', h: 'Citi Double Cash', t: 'Up to 2% back (1% when you buy, 1% when you pay).', cta: 'Apply at citi.com', src: ['citi', 'nw'] }
-  ],
-  maxBrands: 2,
-  aeo: [
-    { lever: 'Technical', t: 'Expose prequalification', d: '“No hard pull” is the anxiety point for starters. PNC’s prequalify tool is JavaScript-only, so models can’t confirm it exists. Add a static description and FAQ.' },
-    { lever: 'Content', t: 'Short, quotable product facts', d: 'Transactional answers cite one or two lines per card. Make “Unlimited 2% cash back, no annual fee” the first sentence on the page.' },
-    { lever: 'Measurement', t: 'Attribute AI-referred applications', d: 'Track application starts from AI referrers separately. Conversion rates from AI answers are typically higher than generic search.' }
-  ]
-},
-
-/* ======================= FIRST-TIME HOME BUYER ======================= */
-fthb_info: {
-  prompt: 'How much do I really need for a down payment on my first home, and are there grants that can help?',
-  implied: 'Feels blocked by the down payment. Wants permission to buy with less than 20% down and concrete grant programs, ideally local.',
-  explicit: ['down payment', 'first home', 'grants'],
-  inferred: ['Believes 20% is required', 'Moderate income, may qualify for programs', 'Will look for local or state assistance', 'Starting a 6 to 12 month journey'],
-  fan: [
-    ['minimum down payment first time home buyer', 'explainer'],
-    ['do you need 20 percent down', 'explainer'],
-    ['first time home buyer grants Ohio 2026', 'local'],
-    ['down payment assistance programs Columbus', 'local'],
-    ['bank homebuyer grant programs', 'commercial'],
-    ['PNC Homebuyer Grant eligibility', 'entity'],
-    ['FHA vs conventional down payment', 'compare'],
-    ['HUD first time homebuyer help', 'trust']
-  ],
-  src: [
-    { id: 'hud', dom: 'hud.gov', t: 'Buying a Home: local homebuying programs', type: 'authority', fmt: 'explainer', rel: .86, b: [] },
-    { id: 'cfpb', dom: 'consumerfinance.gov', t: 'How much do you need for a down payment?', type: 'authority', fmt: 'explainer', rel: .88, b: [] },
-    { id: 'ohfa', dom: 'myohiohome.org', t: 'Ohio Housing Finance Agency: down payment assistance', type: 'authority', fmt: 'explainer', rel: .7, b: [] },
-    { id: 'nw', dom: 'nerdwallet.com', t: 'First-Time Home Buyer Grants and Programs', type: 'publisher', fmt: 'listicle', rel: .84, b: ['boa', 'chase', 'pnc', 'wf'] },
-    { id: 'pncg', dom: 'pnc.com', path: '/personal-banking/home-lending/homebuyer-grant', t: 'PNC Homebuyer Grant', type: 'owned', fmt: 'product', rel: .74, b: ['pnc'] },
-    { id: 'pnci', dom: 'pnc.com', path: '/insights/personal-finance/borrow/down-payment', t: 'How much should you put down on a house?', type: 'owned', fmt: 'explainer', rel: .7, b: ['pnc'] },
-    { id: 'boa', dom: 'bankofamerica.com', t: 'Down Payment Grant program', type: 'competitor', fmt: 'product', rel: .64, b: ['boa'] },
-    { id: 'yt', dom: 'youtube.com', t: 'First-time buyer: you don’t need 20% down (video)', type: 'ugc', fmt: 'video', rel: .6, b: [] },
-    { id: 'rd', dom: 'reddit.com', path: '/r/FirstTimeHomeBuyer', t: 'Got $10k in grants: here’s how', type: 'ugc', fmt: 'thread', rel: .68, b: ['chase', 'boa'] }
-  ],
-  items: [
-    { b: null, h: 'You probably don’t need 20%', t: '20% down avoids mortgage insurance, but it isn’t required. Conventional loans can go as low as 3% down for eligible first-time buyers, FHA loans 3.5%, and VA and USDA loans 0% if you qualify.', src: ['cfpb', 'pnci', 'yt'] },
-    { b: null, h: 'Budget for more than the down payment', t: 'Plan for closing costs (often 2% to 5% of the price), moving costs, and a cash cushion after closing.', src: ['cfpb', 'pnci'] },
-    { b: null, h: 'State and local assistance', t: 'Ohio Housing Finance Agency and many city programs offer grants or forgivable loans for down payments and closing costs, usually with income limits and a homebuyer education course.', src: ['ohfa', 'hud'] },
-    { b: 'pnc', h: 'Lender grants: PNC Homebuyer Grant', t: 'Some lenders offer their own grants. The PNC Homebuyer Grant provides up to $5,000 toward closing costs or down payment for eligible properties and buyers, and it can often be combined with other assistance.', src: ['pncg', 'nw', 'pnci'] },
-    { b: 'boa', h: 'Lender grants: Bank of America', t: 'Bank of America’s Down Payment Grant program is available in select markets.', src: ['boa', 'nw', 'rd'] },
-    { b: 'chase', h: 'Lender grants: Chase', t: 'Chase offers a Homebuyer Grant in eligible communities.', src: ['nw', 'rd'] }
-  ],
-  maxBrands: 2,
-  aeo: [
-    { lever: 'Content', t: 'Make the grant page answer-first', d: 'Lead with “up to $5,000,” who qualifies, and how to check eligibility by address. That’s the exact fact models extract for grant prompts.' },
-    { lever: 'Content', t: 'Localize the explainer', d: 'Gemini and Copilot add local queries (Columbus, Ohio). Market-level pages that pair PNC grants with state HFA programs win those fan-outs.' },
-    { lever: 'Off-site', t: 'Be on the grant roundups', d: 'NerdWallet’s grant list is the most-cited third-party source. Keep PNC’s entry current with eligibility details.' }
-  ]
-},
-
-fthb_rec: {
-  prompt: 'What are the best mortgage lenders for first-time home buyers with a low down payment?',
-  implied: 'Shopping lenders and wants someone patient who offers low-down-payment programs and help with closing costs. Trust and guidance matter as much as rate.',
-  explicit: ['mortgage lenders', 'first-time buyer', 'low down payment'],
-  inferred: ['Needs hand-holding', 'Grant or assistance eligible', 'Will get 2 to 3 quotes', 'Local loan officer access valued'],
-  fan: [
-    ['best mortgage lenders for first time home buyers 2026', 'commercial'],
-    ['low down payment mortgage lenders', 'commercial'],
-    ['lenders with homebuyer grants', 'commercial'],
-    ['J.D. Power mortgage origination satisfaction', 'trust'],
-    ['PNC mortgage review', 'entity'],
-    ['reddit best lender first home', 'community'],
-    ['mortgage lenders Columbus Ohio', 'local'],
-    ['mortgage rates today', 'freshness']
-  ],
-  src: [
-    { id: 'nw', dom: 'nerdwallet.com', t: 'Best Mortgage Lenders for First-Time Home Buyers', type: 'publisher', fmt: 'listicle', rel: .9, b: ['rocket', 'chase', 'boa', 'pnc'] },
-    { id: 'br', dom: 'bankrate.com', t: 'Best first-time homebuyer lenders', type: 'publisher', fmt: 'listicle', rel: .84, b: ['rocket', 'boa', 'wf'] },
-    { id: 'jdp', dom: 'jdpower.com', t: 'U.S. Mortgage Origination Satisfaction Study', type: 'authority', fmt: 'review', rel: .72, b: ['rocket', 'chase', 'pnc'] },
-    { id: 'pncm', dom: 'pnc.com', path: '/personal-banking/home-lending/first-time-homebuyers', t: 'First-time homebuyers | PNC', type: 'owned', fmt: 'product', rel: .72, b: ['pnc'] },
-    { id: 'pncr', dom: 'bankrate.com', path: '/mortgages/reviews/pnc', t: 'PNC mortgage review', type: 'publisher', fmt: 'review', rel: .66, b: ['pnc'] },
-    { id: 'rd', dom: 'reddit.com', path: '/r/FirstTimeHomeBuyer', t: 'Lender recommendations? Big bank vs. broker', type: 'ugc', fmt: 'thread', rel: .74, b: ['rocket', 'chase'] },
-    { id: 'rocket', dom: 'rocketmortgage.com', t: 'First-time home buyer loans', type: 'competitor', fmt: 'product', rel: .62, b: ['rocket'] },
-    { id: 'gmb', dom: 'google.com', path: '/maps', t: 'Mortgage loan officers near Columbus, OH', type: 'owned', fmt: 'local', rel: .5, b: ['pnc', 'chase'] }
-  ],
-  items: [
-    { b: 'rocket', h: 'Rocket Mortgage', t: 'Fast online process and a wide range of low-down-payment options. Consistently near the top in satisfaction studies.', src: ['rocket', 'nw', 'br', 'jdp', 'rd'] },
-    { b: 'boa', h: 'Bank of America', t: 'Affordable Loan Solution® with as little as 3% down, plus down payment grants in select markets.', src: ['nw', 'br'] },
-    { b: 'chase', h: 'Chase', t: 'DreaMaker℠ low-down-payment mortgage and a homebuyer grant in eligible areas.', src: ['nw', 'jdp', 'rd'] },
-    { b: 'pnc', h: 'PNC', t: 'PNC Community Loan (low down payment, no PMI), the PNC Homebuyer Grant (up to $5,000 for eligible buyers), and Home Insight® tools to track your application. Local loan officers can guide you through it.', src: ['pncm', 'pncr', 'nw', 'jdp', 'gmb'] },
-    { b: 'wf', h: 'Wells Fargo', t: 'Dream. Plan. Home.® closing-cost credit and low-down-payment options.', src: ['br'] }
-  ],
-  close: 'Get Loan Estimates from at least three lenders on the same day and compare rate, APR, and lender fees side by side.',
-  maxBrands: 4,
-  aeo: [
-    { lever: 'Off-site', t: 'Satisfaction studies matter', d: 'J.D. Power and publisher “best lender” lists set the shortlist. Promote PNC’s mortgage awards and ratings so they appear in those sources.' },
-    { lever: 'Content', t: 'Bundle the first-time-buyer story', d: 'The models assemble PNC’s value from three pages (Community Loan, Grant, Home Insight). A single answer-first hub page lets them cite one coherent source.' },
-    { lever: 'Technical', t: 'Loan officer pages', d: 'Local loan officer profiles with LocalBusiness/Person schema help win “near me” fan-outs for Gemini and Copilot.' }
-  ]
-},
-
-fthb_compare: {
-  prompt: 'FHA vs conventional vs a bank’s community loan program: which is best for a first-time buyer with 5% down?',
-  implied: 'Educated buyer weighing mortgage insurance and total cost. Wants the math and a recommendation for their situation.',
-  explicit: ['FHA', 'conventional', 'community loan program', '5% down'],
-  inferred: ['Credit score probably 680+', 'Sensitive to PMI cost', 'Income near area median'],
-  fan: [
-    ['FHA vs conventional 5% down', 'compare'],
-    ['FHA mortgage insurance premium 2026', 'freshness'],
-    ['conventional loan PMI 5 percent down', 'explainer'],
-    ['bank community loan no PMI', 'commercial'],
-    ['PNC Community Loan requirements', 'entity'],
-    ['HomeReady vs FHA', 'compare'],
-    ['reddit FHA or conventional first time buyer', 'community']
-  ],
-  src: [
-    { id: 'cfpb', dom: 'consumerfinance.gov', t: 'Explore loan types', type: 'authority', fmt: 'compare', rel: .86, b: [] },
-    { id: 'hud', dom: 'hud.gov', t: 'FHA loans and mortgage insurance', type: 'authority', fmt: 'explainer', rel: .8, b: [] },
-    { id: 'fnm', dom: 'fanniemae.com', t: 'HomeReady® mortgage', type: 'authority', fmt: 'product', rel: .72, b: [] },
-    { id: 'nw', dom: 'nerdwallet.com', t: 'FHA vs. Conventional Loans', type: 'publisher', fmt: 'compare', rel: .88, b: [] },
-    { id: 'pncc', dom: 'pnc.com', path: '/personal-banking/home-lending/mortgages/community-loan', t: 'PNC Community Loan', type: 'owned', fmt: 'product', rel: .72, b: ['pnc'] },
-    { id: 'boa', dom: 'bankofamerica.com', t: 'Affordable Loan Solution® mortgage', type: 'competitor', fmt: 'product', rel: .66, b: ['boa'] },
-    { id: 'chase', dom: 'chase.com', t: 'DreaMaker℠ mortgage', type: 'competitor', fmt: 'product', rel: .62, b: ['chase'] },
-    { id: 'rd', dom: 'reddit.com', path: '/r/FirstTimeHomeBuyer', t: 'FHA vs conventional with 5% down: math inside', type: 'ugc', fmt: 'thread', rel: .7, b: [] }
-  ],
-  cols: ['Down payment', 'Mortgage insurance', 'Best for'],
-  items: [
-    { b: null, h: 'FHA', cells: ['3.5% minimum', 'Upfront + annual MIP, often for the life of the loan', 'Lower credit scores'], src: ['hud', 'nw', 'cfpb'] },
-    { b: null, h: 'Conventional (incl. HomeReady)', cells: ['3% to 5% minimum', 'PMI that can be removed at 20% equity', 'Good credit; long-term cost'], src: ['fnm', 'nw', 'cfpb', 'rd'] },
-    { b: 'pnc', h: 'PNC Community Loan', cells: ['As little as 3% down', 'No PMI required', 'Eligible buyers who want lower monthly cost'], src: ['pncc'] },
-    { b: 'boa', h: 'BofA Affordable Loan Solution', cells: ['As little as 3% down', 'No PMI', 'Eligible buyers in BofA markets'], src: ['boa'] },
-    { b: 'chase', h: 'Chase DreaMaker', cells: ['As little as 3% down', 'Reduced PMI', 'Income-eligible buyers'], src: ['chase'] }
-  ],
-  verdict: { pnc: 'With 5% down and decent credit, a no-PMI bank community program like PNC Community Loan can beat both FHA and conventional on monthly cost, if you meet the income and property rules.', boa: 'Bank community programs like BofA’s Affordable Loan Solution can beat FHA on monthly cost if you qualify.', chase: 'Bank programs like Chase DreaMaker can lower your PMI versus standard conventional.', _: 'With 5% down and a credit score above about 680, conventional usually costs less over time than FHA because PMI can be removed.' },
-  maxBrands: 1,
-  aeo: [
-    { lever: 'Content', t: 'Publish the math', d: 'Comparison prompts reward worked examples. A PNC page showing monthly cost for FHA vs. conventional vs. Community Loan at 5% down gives models the table they’re trying to build.' },
-    { lever: 'Content', t: 'Use category language', d: 'Users say “community loan program” and “no PMI,” not product names. Make sure the Community Loan page uses those exact phrases.' },
-    { lever: 'Off-site', t: 'Get into the explainer canon', d: 'NerdWallet and CFPB own the generic comparison. Contributing expert quotes from PNC mortgage leaders can earn citations inside those sources.' }
-  ]
-},
-
-fthb_txn: {
-  prompt: 'I want to get pre-approved for a mortgage online this week. Which lender should I start with and what do I need?',
-  implied: 'Ready to start. Wants speed and a clear checklist, but also a human for questions. A local lender with online pre-approval is the sweet spot.',
-  explicit: ['pre-approved', 'online', 'this week'],
-  inferred: ['Has found homes they like', 'Needs a pre-approval letter for offers', 'Wants a local loan officer'],
-  fan: [
-    ['get pre approved for mortgage online', 'howto'],
-    ['documents needed for mortgage pre approval', 'howto'],
-    ['fastest mortgage pre approval', 'commercial'],
-    ['PNC mortgage pre approval', 'entity'],
-    ['mortgage lender near Columbus OH', 'local'],
-    ['pre approval vs prequalification', 'explainer']
-  ],
-  src: [
-    { id: 'pnch', dom: 'pnc.com', path: '/personal-banking/home-lending/home-insight-planner', t: 'Home Insight® Planner: get pre-approved', type: 'owned', fmt: 'tool', rel: .86, b: ['pnc'], issue: 'js' },
-    { id: 'pncm', dom: 'pnc.com', path: '/personal-banking/home-lending/first-time-homebuyers', t: 'First-time homebuyers | PNC', type: 'owned', fmt: 'product', rel: .74, b: ['pnc'] },
-    { id: 'rocket', dom: 'rocketmortgage.com', t: 'Get approved online', type: 'competitor', fmt: 'product', rel: .86, b: ['rocket'] },
-    { id: 'chase', dom: 'chase.com', t: 'Mortgage pre-approval', type: 'competitor', fmt: 'product', rel: .72, b: ['chase'] },
-    { id: 'cfpb', dom: 'consumerfinance.gov', t: 'Get a prequalification or preapproval letter', type: 'authority', fmt: 'howto', rel: .78, b: [] },
-    { id: 'nw', dom: 'nerdwallet.com', t: 'Mortgage Preapproval: What You Need', type: 'publisher', fmt: 'howto', rel: .76, b: ['rocket'] },
-    { id: 'gmb', dom: 'google.com', path: '/maps', t: 'PNC Mortgage loan officers: Columbus, OH', type: 'owned', fmt: 'local', rel: .62, b: ['pnc'] }
-  ],
-  steps: ['Gather two years of W-2s, 30 days of pay stubs, two months of bank statements, and IDs for both of you.', 'Apply online. A soft or hard credit check follows depending on the lender.', 'Upload documents and get a pre-approval letter (often 1 to 3 days).', 'Ask about grants and assistance before you make an offer.'],
-  items: [
-    { b: 'rocket', h: 'Rocket Mortgage', t: 'Fully online and fast, with decisions often within a day.', cta: 'Start at rocketmortgage.com', src: ['rocket', 'nw'] },
-    { b: 'pnc', h: 'PNC Mortgage', t: 'Start with the Home Insight Planner online, then track progress with Home Insight Tracker. A local Columbus loan officer can check eligibility for the PNC Homebuyer Grant.', cta: 'Get pre-approved at pnc.com', src: ['pnch', 'pncm', 'gmb'] },
-    { b: 'chase', h: 'Chase', t: 'Online pre-approval with in-branch home lending advisors.', cta: 'Start at chase.com', src: ['chase'] }
-  ],
-  maxBrands: 2,
-  aeo: [
-    { lever: 'Technical', t: 'The Planner is invisible to most models', d: 'Home Insight Planner is a JavaScript app with no crawlable description. Only Gemini (rendered Google index) reliably sees it. Add a static landing page that explains the steps.' },
-    { lever: 'Technical', t: 'Win local', d: 'Complete, review-rich Google Business Profiles and Bing Places listings for PNC mortgage loan officers carry “this week, near me” prompts.' },
-    { lever: 'Content', t: 'Own the document checklist', d: 'Every model answers “what do I need?” Publish a printable PNC pre-approval checklist page with HowTo schema.' }
-  ]
-},
-
-/* ======================= EMERGING MASS AFFLUENT ======================= */
-ema_info: {
-  prompt: 'I have about $180k saved and my income keeps growing. When does it make sense to work with a financial advisor instead of doing it myself?',
-  implied: 'Feeling the complexity (RSUs, taxes, a house, kids’ college) and wondering if they’ve outgrown DIY. Wants to understand fee models and trust before engaging.',
-  explicit: ['$180k saved', 'growing income', 'financial advisor'],
-  inferred: ['Has equity comp', 'Tax optimization need', 'Distrust of commissions', 'Wants a bank relationship that scales'],
-  fan: [
-    ['when do you need a financial advisor', 'explainer'],
-    ['fee only vs commission financial advisor', 'explainer'],
-    ['financial advisor minimum investment', 'explainer'],
-    ['how much does a financial advisor cost', 'explainer'],
-    ['robo advisor vs human advisor', 'compare'],
-    ['bank wealth management for mass affluent', 'commercial'],
-    ['PNC Investments advisor', 'entity'],
-    ['check advisor FINRA BrokerCheck', 'trust']
-  ],
-  src: [
-    { id: 'finra', dom: 'finra.org', t: 'Choosing an investment professional', type: 'authority', fmt: 'explainer', rel: .82, b: [] },
-    { id: 'sec', dom: 'investor.gov', t: 'Working with an investment professional', type: 'authority', fmt: 'explainer', rel: .84, b: [] },
-    { id: 'inv', dom: 'investopedia.com', t: 'When Should You Hire a Financial Advisor?', type: 'publisher', fmt: 'explainer', rel: .88, b: [] },
-    { id: 'nw', dom: 'nerdwallet.com', t: 'How Much Does a Financial Advisor Cost?', type: 'publisher', fmt: 'explainer', rel: .78, b: ['fidelity', 'schwab'] },
-    { id: 'pnci', dom: 'pnc.com', path: '/insights/personal-finance/invest/financial-advisor', t: 'Do you need a financial advisor?', type: 'owned', fmt: 'explainer', rel: .72, b: ['pnc'] },
-    { id: 'pncw', dom: 'pnc.com', path: '/personal-banking/investments', t: 'PNC Investments: advice and planning', type: 'owned', fmt: 'product', rel: .6, b: ['pnc'] },
-    { id: 'rd', dom: 'reddit.com', path: '/r/financialindependence', t: 'At what net worth did you hire an advisor?', type: 'ugc', fmt: 'thread', rel: .72, b: ['fidelity', 'schwab'] },
-    { id: 'schwab', dom: 'schwab.com', t: 'Schwab Wealth Advisory', type: 'competitor', fmt: 'product', rel: .58, b: ['schwab'] }
-  ],
-  items: [
-    { b: null, h: 'Signs you’ve outgrown DIY', t: 'Equity compensation (RSUs or options), a large tax bill, multiple goals competing for cash (house, college, early retirement), or a major life event are common triggers. Around $100k to $250k in investable assets is where many people start considering advice.', src: ['inv', 'rd', 'pnci'] },
-    { b: null, h: 'Understand how advisors are paid', t: 'Fee-only advisors charge a flat fee, hourly rate, or percent of assets (often around 1%). Commission-based advisors are paid on products sold. Ask whether they act as a fiduciary.', src: ['sec', 'nw', 'finra'] },
-    { b: null, h: 'Options between robo and private bank', t: 'Robo-advisors are cheapest, hybrid services add a human planner, and bank or brokerage advisors can tie advice to your banking relationship.', src: ['nw', 'inv'] },
-    { b: null, h: 'Check before you hire', t: 'Look up any advisor on FINRA BrokerCheck or the SEC’s Investment Adviser search.', src: ['finra', 'sec'] },
-    { b: 'pnc', h: 'Example: bank-based advice', t: 'Banks like PNC offer advice through PNC Investments alongside your checking and savings, which can make it easier to coordinate cash, investing, and lending as your needs grow.', src: ['pncw', 'pnci'] },
-    { b: 'fidelity', h: 'Example: brokerage advice', t: 'Fidelity offers hybrid advisory services with planning.', src: ['nw', 'rd'] },
-    { b: 'schwab', h: 'Example: Schwab', t: 'Schwab pairs robo portfolios with access to certified planners.', src: ['schwab', 'nw', 'rd'] }
-  ],
-  maxBrands: 2,
-  aeo: [
-    { lever: 'Content', t: 'Own the “when” question', d: 'Info prompts for this persona are about thresholds and triggers. A PNC Insights piece with clear asset thresholds and life-event triggers is highly extractable.' },
-    { lever: 'Content', t: 'Explain fees transparently', d: 'Models favor sources that explain fee models neutrally. Transparent PNC Investments fee explanations build trust signals and citations.' },
-    { lever: 'Off-site', t: 'Advisor thought leadership', d: 'Quotes from PNC advisors in Investopedia and Kiplinger pieces put PNC inside the sources models already trust.' }
-  ]
-},
-
-ema_rec: {
-  prompt: 'What’s the best bank for someone with a high income who wants premium perks and wealth management in one place?',
-  implied: 'Wants relationship benefits (rate discounts, fee waivers, a dedicated banker) and a path to advice, without private-bank minimums. Status and convenience both matter.',
-  explicit: ['high income', 'premium perks', 'wealth management'],
-  inferred: ['$100k to $500k relationship', 'Mortgage or HELOC likely', 'Travel perks appeal', 'Wants one relationship manager'],
-  fan: [
-    ['best premium checking accounts for high earners', 'commercial'],
-    ['bank relationship rewards programs comparison', 'compare'],
-    ['Chase Sapphire Banking vs BofA Preferred Rewards', 'compare'],
-    ['PNC Performance Select review', 'entity'],
-    ['bank with wealth management and checking', 'commercial'],
-    ['reddit best bank for HENRY', 'community'],
-    ['private banking minimums 2026', 'freshness'],
-    ['bank with financial advisors Philadelphia', 'local']
-  ],
-  src: [
-    { id: 'nw', dom: 'nerdwallet.com', t: 'Best Premium Checking Accounts', type: 'publisher', fmt: 'listicle', rel: .86, b: ['chase', 'boa', 'citi', 'wf'] },
-    { id: 'fa', dom: 'forbes.com', path: '/advisor', t: 'Best Banks for Wealthy Customers', type: 'publisher', fmt: 'listicle', rel: .8, b: ['chase', 'boa', 'schwab', 'citi'] },
-    { id: 'br', dom: 'bankrate.com', t: 'PNC Virtual Wallet with Performance Select review', type: 'publisher', fmt: 'review', rel: .68, b: ['pnc'] },
-    { id: 'pncp', dom: 'pnc.com', path: '/personal-banking/banking/checking/virtual-wallet/performance-select', t: 'Virtual Wallet® with Performance Select', type: 'owned', fmt: 'product', rel: .72, b: ['pnc'] },
-    { id: 'pncw', dom: 'pnc.com', path: '/personal-banking/investments', t: 'PNC Investments', type: 'owned', fmt: 'product', rel: .58, b: ['pnc'] },
-    { id: 'boa', dom: 'bankofamerica.com', t: 'Preferred Rewards', type: 'competitor', fmt: 'product', rel: .7, b: ['boa'] },
-    { id: 'chase', dom: 'chase.com', t: 'Chase Sapphire℠ Banking', type: 'competitor', fmt: 'product', rel: .7, b: ['chase'] },
-    { id: 'rd', dom: 'reddit.com', path: '/r/HENRYfinance', t: 'Is any bank’s “premium” tier worth it?', type: 'ugc', fmt: 'thread', rel: .72, b: ['boa', 'schwab', 'fidelity'] }
-  ],
-  items: [
-    { b: 'boa', h: 'Bank of America Preferred Rewards', t: 'Tiered benefits across banking, Merrill investing, and credit-card rewards boosts. Very popular with high earners who consolidate.', src: ['boa', 'nw', 'fa', 'rd'] },
-    { b: 'chase', h: 'Chase Sapphire Banking', t: 'Premium checking with ATM fee refunds and access to J.P. Morgan advisors.', src: ['chase', 'nw', 'fa'] },
-    { b: 'pnc', h: 'PNC Virtual Wallet with Performance Select', t: 'PNC’s premium tier: higher savings rates, ATM fee reimbursements, and relationship benefits. It pairs with PNC Investments for advice, with a path to PNC Private Bank as assets grow.', src: ['pncp', 'br', 'pncw'] },
-    { b: 'schwab', h: 'Charles Schwab', t: 'Investor Checking with unlimited ATM refunds, paired with advisory services. Strong if investing is the priority.', src: ['fa', 'rd'] },
-    { b: 'citi', h: 'Citi Priority', t: 'Relationship tier with travel-friendly perks and wealth advisors.', src: ['nw', 'fa'] }
-  ],
-  close: 'The best choice usually follows where you’ll hold the most assets. Relationship tiers reward consolidation.',
-  maxBrands: 4,
-  aeo: [
-    { lever: 'Off-site', t: 'PNC is under-represented in premium roundups', d: 'Publisher “premium checking” lists center on Chase, BofA, and Citi. Pitching Performance Select with a clear benefits table is the fastest lever.' },
-    { lever: 'Content', t: 'Tell the relationship story in one place', d: 'The answer needs banking + advice + private bank path. Today that story spans several pnc.com pages; a single “PNC for growing wealth” hub page is easier to cite.' },
-    { lever: 'Off-site', t: 'Show up in HENRY communities', d: 'r/HENRYfinance and r/financialindependence shape ChatGPT’s view of “worth it.” Authentic advisor AMAs and customer stories help.' }
-  ]
-},
-
-ema_compare: {
-  prompt: 'Compare PNC Performance Select vs Chase Sapphire Banking vs Bank of America Preferred Rewards for someone with $150k to consolidate.',
-  implied: 'Ready to consolidate a meaningful relationship. Wants to know which tier unlocks the most value at $150k and what the trade-offs are.',
-  explicit: ['PNC Performance Select', 'Chase Sapphire Banking', 'BofA Preferred Rewards', '$150k'],
-  inferred: ['Will move investments too', 'Values rate boosts on mortgage or cards', 'Wants a named banker'],
-  named: ['pnc', 'chase', 'boa'],
-  fan: [
-    ['PNC Performance Select requirements benefits', 'entity'],
-    ['Chase Sapphire Banking minimum balance', 'entity'],
-    ['BofA Preferred Rewards tiers balance', 'entity'],
-    ['premium checking comparison 2026', 'compare'],
-    ['which bank relationship program is best', 'compare'],
-    ['reddit Preferred Rewards vs Sapphire Banking', 'community']
-  ],
-  src: [
-    { id: 'pncp', dom: 'pnc.com', path: '/personal-banking/banking/checking/virtual-wallet/performance-select', t: 'Virtual Wallet® with Performance Select: benefits', type: 'owned', fmt: 'product', rel: .84, b: ['pnc'], issue: 'js' },
-    { id: 'chase', dom: 'chase.com', t: 'Chase Sapphire℠ Banking', type: 'competitor', fmt: 'product', rel: .84, b: ['chase'] },
-    { id: 'boa', dom: 'bankofamerica.com', t: 'Preferred Rewards: tiers and benefits', type: 'competitor', fmt: 'product', rel: .86, b: ['boa'] },
-    { id: 'nw', dom: 'nerdwallet.com', t: 'BofA Preferred Rewards vs. Chase Sapphire Banking', type: 'publisher', fmt: 'compare', rel: .86, b: ['boa', 'chase'] },
-    { id: 'br', dom: 'bankrate.com', t: 'PNC Performance Select review', type: 'publisher', fmt: 'review', rel: .7, b: ['pnc'] },
-    { id: 'rd', dom: 'reddit.com', path: '/r/churning', t: 'Preferred Rewards Platinum Honors is unbeatable if…', type: 'ugc', fmt: 'thread', rel: .66, b: ['boa', 'chase'] }
-  ],
-  cols: ['To unlock', 'Key benefits', 'Watch out for'],
-  items: [
-    { b: 'pnc', h: 'PNC Performance Select', cells: ['Qualifying balances or direct deposit', 'Higher savings rate, ATM fee reimbursements, card and loan perks', 'Benefits vary by market; strongest inside PNC footprint'], src: ['pncp', 'br'] },
-    { b: 'chase', h: 'Chase Sapphire Banking', cells: ['$75k in qualifying balances', 'ATM fee refunds, no foreign fees, J.P. Morgan advisor access', 'Perks overlap with Sapphire cards'], src: ['chase', 'nw', 'rd'] },
-    { b: 'boa', h: 'BofA Preferred Rewards', cells: ['$20k / $50k / $100k tiers', 'Card rewards boost up to 75%, mortgage discounts, Merrill perks', 'Best value requires investing with Merrill'], src: ['boa', 'nw', 'rd'] }
-  ],
-  verdict: { boa: 'At $150k, BofA Preferred Rewards reaches its top tier, the strongest value if you also invest with Merrill and use BofA cards.', pnc: 'If you live in PNC’s footprint and value a local banker and integrated budgeting, Performance Select is competitive.', chase: 'Chase Sapphire Banking fits frequent travelers already in the Sapphire card ecosystem.' },
-  maxBrands: 3,
-  aeo: [
-    { lever: 'Technical', t: 'Benefits table is JavaScript-only', d: 'Performance Select’s benefit matrix loads client-side. ChatGPT, Claude, and Copilot can’t read it and fall back to a dated Bankrate review, so PNC’s cells in the table are vague.' },
-    { lever: 'Content', t: 'State the thresholds plainly', d: 'Competitors publish exact unlock thresholds and benefits. Models compare numbers; vague “qualifying balances” language loses the verdict line.' },
-    { lever: 'Measurement', t: 'Score answer accuracy', d: 'For named comparisons, track factual accuracy of PNC’s row across models monthly. Wrong facts in AI answers are a compliance risk, not just a marketing one.' }
-  ]
-},
-
-ema_txn: {
-  prompt: 'I want to schedule a meeting with a financial advisor at a bank near me in Philadelphia this month. Who should I contact?',
-  implied: 'Ready to engage. Wants a credible, nearby advisor, an easy way to book, and reassurance on credentials.',
-  explicit: ['schedule meeting', 'financial advisor', 'bank', 'Philadelphia', 'this month'],
-  inferred: ['Prefers in-person', 'Wants online booking', 'Will check credentials'],
-  fan: [
-    ['bank financial advisor Philadelphia', 'local'],
-    ['schedule appointment PNC Investments advisor', 'entity'],
-    ['Merrill advisor Philadelphia', 'entity'],
-    ['J.P. Morgan advisor Philadelphia', 'entity'],
-    ['how to choose a financial advisor checklist', 'howto'],
-    ['FINRA BrokerCheck', 'trust']
-  ],
-  src: [
-    { id: 'gmb', dom: 'google.com', path: '/maps', t: 'PNC Investments: Center City Philadelphia', type: 'owned', fmt: 'local', rel: .8, b: ['pnc'] },
-    { id: 'pncw', dom: 'pnc.com', path: '/personal-banking/investments/schedule', t: 'Schedule an appointment with PNC Investments', type: 'owned', fmt: 'tool', rel: .8, b: ['pnc'] },
-    { id: 'boa', dom: 'ml.com', t: 'Find a Merrill advisor: Philadelphia', type: 'competitor', fmt: 'local', rel: .76, b: ['boa'] },
-    { id: 'chase', dom: 'chase.com', t: 'J.P. Morgan Wealth Management: Philadelphia', type: 'competitor', fmt: 'local', rel: .72, b: ['chase'] },
-    { id: 'finra', dom: 'finra.org', t: 'BrokerCheck', type: 'authority', fmt: 'tool', rel: .7, b: [] },
-    { id: 'yelp', dom: 'yelp.com', t: 'Top financial advisors in Philadelphia', type: 'ugc', fmt: 'local', rel: .56, b: ['fidelity', 'chase'] },
-    { id: 'fidelity', dom: 'fidelity.com', t: 'Fidelity Investor Center: Philadelphia', type: 'competitor', fmt: 'local', rel: .62, b: ['fidelity'] }
-  ],
-  steps: ['Shortlist two or three advisors and look each up on FINRA BrokerCheck.', 'Book online or call. Most banks offer same-week intro meetings.', 'Bring recent statements, your equity comp details, and your top 3 goals.', 'Ask how they’re paid and whether they act as a fiduciary.'],
-  items: [
-    { b: 'pnc', h: 'PNC Investments: Center City', t: 'Advisors at PNC branches across Philadelphia. You can book online and connect advice with your PNC banking and lending.', cta: 'Schedule at pnc.com', src: ['pncw', 'gmb'] },
-    { b: 'boa', h: 'Merrill (Bank of America)', t: 'Merrill advisors in Center City, integrated with Preferred Rewards.', cta: 'Find an advisor at ml.com', src: ['boa'] },
-    { b: 'chase', h: 'J.P. Morgan Wealth Management', t: 'Advisors in Chase branches, with an online booking option.', cta: 'Book at chase.com', src: ['chase', 'yelp'] },
-    { b: 'fidelity', h: 'Fidelity Investor Center', t: 'Walk-in investor center with planning consultations.', cta: 'Book at fidelity.com', src: ['fidelity', 'yelp'] }
-  ],
-  maxBrands: 3,
-  aeo: [
-    { lever: 'Technical', t: 'Local listings are the battleground', d: 'Transactional advice prompts resolve through maps and local listings. Complete, review-rich profiles for every PNC Investments location (Google Business Profile and Bing Places) are the top lever.' },
-    { lever: 'Content', t: 'Advisor bio pages', d: 'Crawlable advisor pages with credentials, specialties, and booking links give models the trust signals they look for, like CFP® and FINRA registration.' },
-    { lever: 'Measurement', t: 'Track AI-sourced appointments', d: 'Add AI referrers as a source in appointment-booking analytics to size this channel.' }
-  ]
+/* ====================== CREDIT CARDS ====================== */
+cards: {
+  name: 'Credit Cards', short: 'Credit cards', ic: 'card',
+  segOf: { student: 'student', starter: 'student', smb: 'smb' },
+  cat: { default: ['cash back credit card', 'cash back credit cards'], student: ['starter credit card', 'starter credit cards'], smb: ['business credit card', 'business credit cards'] },
+  feeword: 'rewards and fees', localQ: 'PNC branch',
+  trustQ: 'how credit cards affect your credit score CFPB',
+  cols: ['Rewards', 'Annual fee & intro offer', 'Standout'],
+  schemaType: 'CreditCard',
+  faqQ: ['What rewards does this card earn?', 'Is there an annual fee?'],
+  compare: { default: ['pnc', 'citi', 'wf'], student: ['pnc', 'discover', 'capone'], smb: ['pnc', 'chase', 'amex'] },
+  prompts: {
+    info: ['How do cash back credit cards work, and how do I pick one?', 'How should a college student use a credit card to build credit?', 'How do I build credit with my first credit card without getting into debt?', 'Will opening a new credit card hurt my chances of getting a mortgage?', 'Are premium travel credit cards worth the annual fee?', 'Should I get a business credit card, and how does it affect my personal credit?'],
+    rec: ['What’s the best cash back credit card right now?', 'What’s the best credit card for a college student with no credit history?', 'What’s the best first credit card to build credit after college?', 'What’s a good no-annual-fee card I can open without hurting my mortgage application?', 'What’s the best rewards credit card for a high spender?', 'What’s the best business credit card for a small business?'],
+    compare: ['PNC Cash Unlimited vs Citi Double Cash vs Wells Fargo Active Cash: which 2% card is best?', 'PNC Cash Rewards vs Discover it Student vs Capital One for a student’s first card?', 'PNC Cash Rewards Visa vs Discover it vs Capital One Quicksilver for my first card?', 'PNC Cash Unlimited vs Citi Double Cash vs Wells Fargo Active Cash if I’m buying a house soon?', 'PNC Cash Unlimited vs Citi Double Cash vs Wells Fargo Active Cash for big monthly spending?', 'PNC business card vs Chase Ink Business Unlimited vs Amex Blue Business Cash?'],
+    txn: ['I want to apply for a no-annual-fee 2% cash back card today. Where should I apply?', 'How do I apply for my first credit card as a student?', 'I want to apply for my first credit card today. Which one and how?', 'I want a no-annual-fee card but don’t want to hurt my mortgage pre-approval. Should I apply now?', 'I want to apply for a cash back card that pairs with my bank. Where should I apply?', 'I want to apply for a business credit card for my company today. What do I need?']
+  },
+  products: {
+    default: {
+      pnc: ['PNC Cash Unlimited Visa Signature', 'Unlimited 2% cash back with no annual fee, and it works smoothly with PNC Virtual Wallet.', 'Unlimited 2% cash back', 'No annual fee; see pnc.com for current offer', 'Pairs with Virtual Wallet', 'you already bank with PNC'],
+      citi: ['Citi Double Cash', 'Up to 2% back: 1% when you buy and 1% when you pay.', 'Up to 2%', 'No annual fee; balance transfer intro APR', 'Converts to ThankYou points', 'you want a balance transfer or points'],
+      wf: ['Wells Fargo Active Cash', 'Unlimited 2% cash rewards and a cash welcome bonus.', 'Unlimited 2%', 'No annual fee; welcome bonus and intro APR', 'Cell phone protection', 'you want a welcome bonus'],
+      capone: ['Capital One Quicksilver', 'Unlimited 1.5% cash back and no annual fee.', '1.5%', 'No annual fee', 'No foreign transaction fees', 'you travel abroad'],
+      chase: ['Chase Freedom Unlimited', '1.5% base plus bonus categories.', '1.5% plus categories', 'No annual fee', 'Pairs with Sapphire', 'you’re in the Chase ecosystem']
+    },
+    student: {
+      pnc: ['PNC Cash Rewards Visa', 'Cash back on gas, dining and groceries with no annual fee. Applying as a PNC customer can help.', 'Category cash back', 'No annual fee', 'Works with PNC Virtual Wallet', 'you already bank with PNC'],
+      discover: ['Discover it Student', 'No annual fee, cash back and a first-year cashback match.', 'Rotating 5% plus 1%', 'No annual fee; cashback match', 'Built for thin credit files', 'you have no credit history'],
+      capone: ['Capital One Quicksilver', 'Flat cash back and prequalification without a hard pull.', '1.5%', 'No annual fee', 'Prequalify with no hard pull', 'you want to check approval odds first'],
+      chase: ['Chase Freedom Rise', 'Built for people new to credit.', '1.5%', 'No annual fee', 'Easier approval with Chase checking', 'you already bank with Chase']
+    },
+    smb: {
+      pnc: ['PNC Cash Rewards Visa Signature Business', 'Cash back on gas, dining and office supplies, with employee cards and controls in PNC business online banking.', 'Category cash back', 'No annual fee', 'Integrated with PNC business banking', 'you bank your business with PNC'],
+      chase: ['Chase Ink Business Unlimited', 'Unlimited 1.5% cash back and a large welcome bonus.', '1.5%', 'No annual fee; large bonus', 'Pairs with Ink Preferred', 'you want a large welcome bonus'],
+      amex: ['American Express Blue Business Cash', '2% cash back on the first $50k a year.', '2% up to $50k/yr', 'No annual fee', 'Expanded buying power', 'you spend under $50k a year'],
+      capone: ['Capital One Spark Cash Plus', 'Unlimited 2% cash back for higher spend.', '2%', 'Annual fee', 'No preset spending limit', 'you spend heavily']
+    }
+  },
+  pages: {
+    default: { path: '/personal-banking/banking/credit-cards/cash-unlimited', t: 'PNC Cash Unlimited® Visa Signature®', js: true },
+    student: { path: '/personal-banking/banking/credit-cards/cash-rewards', t: 'PNC Cash Rewards® Visa®', js: true },
+    smb: { path: '/small-business/credit-cards', t: 'Business Credit Cards | PNC' }
+  },
+  article: { path: '/insights/personal-finance/borrow/how-cash-back-cards-work', t: 'How Do Cash Back Credit Cards Work?' },
+  ppages: {
+    student: { path: '/insights/college/first-credit-card-for-students', t: 'Your First Credit Card in College: A Safe Start', line: 'PNC’s student guide explains autopay and keeping utilization low.' },
+    starter: { path: '/insights/first-job/build-credit-first-card', t: 'Build Credit With Your First Card After College', line: 'PNC’s first-job guide covers building credit without carrying a balance.' },
+    fthb: { path: '/insights/home/credit-cards-before-a-mortgage', t: 'Should You Open a Credit Card Before a Mortgage?', line: 'PNC’s home-buyer guide explains why to wait on new cards until after closing.' },
+    ema: { path: '/insights/wealth/maximize-card-rewards', t: 'Getting the Most From Card Rewards at Higher Spend', line: 'PNC’s guide for high spenders compares flat-rate and category cards.' },
+    smb: { path: '/small-business/insights/business-credit-card-guide', t: 'Business Credit Cards: Employee Cards, Controls and Credit', line: 'PNC’s small business guide explains employee card controls and how business cards report to credit bureaus.' }
+  },
+  points: {
+    default: [['How cash back works', 'You earn a percentage of each purchase back: flat-rate cards pay the same on everything, category cards pay more on gas, dining or groceries.'], ['Avoid interest', 'Rewards are only worth it if you pay the full balance. Interest wipes out cash back fast.'], ['Pick by spending', 'Flat 2% suits most people. Category cards win if you spend heavily in a few areas.']],
+    smb: [['Separate expenses', 'A business card keeps spending separate for bookkeeping and taxes.'], ['Personal credit', 'Most small business cards require a personal guarantee; some report only negative activity to personal bureaus.'], ['Employee cards', 'Look for free employee cards with spending limits and controls.']]
+  },
+  pp: {
+    student: 'As a student, a no-annual-fee card with autopay for the full balance is the safest way to build credit.',
+    starter: 'With a thin file, approval odds and no annual fee matter more than rewards.',
+    fthb: 'Before a mortgage, avoid new credit inquiries until after closing if you can.',
+    ema: 'At high spend, a premium card’s perks can outweigh the fee, but flat 2% is hard to beat for simplicity.',
+    smb: 'With 14 employees, free employee cards and spending controls matter as much as the cash back.'
+  },
+  steps: { default: ['Check prequalification (a soft pull won’t affect your score).', 'Have your income, housing payment and SSN ready.', 'Apply online; decisions are often instant.', 'Set up autopay for the full statement balance.'], smb: ['Have your EIN, business revenue and owner SSN ready.', 'Decide how many employee cards and limits you need.', 'Apply online or with your business banker.', 'Connect the card to your accounting software.'] },
+  pools: {
+    default: [
+      { id: 'nw', dom: 'nerdwallet.com', t: 'Best Cash Back Credit Cards of 2026', type: 'affiliate', fmt: 'listicle', rel: .9, seo: .95, m: [['wf', 'Best flat-rate'], ['citi', 'Best for balance transfers'], ['chase', 'Best for categories'], ['capone', 'Best for travel']], boost: [3, 'Best for PNC banking customers'] },
+      { id: 'tpg', dom: 'thepointsguy.com', t: 'Best 2% Cash Back Cards', type: 'affiliate', fmt: 'listicle', rel: .8, seo: .82, m: [['citi', 'Best overall'], ['wf', 'Best welcome bonus']], boost: [3, 'Best for bank relationship'] },
+      { id: 'br', dom: 'bankrate.com', t: 'PNC Cash Unlimited review', type: 'affiliate', fmt: 'review', rel: .7, seo: .62, m: [['pnc', 'Review: 4.0/5']] },
+      { id: 'rd', dom: 'reddit.com', path: '/r/CreditCards', t: 'Active Cash or Double Cash? Is the PNC one any good?', type: 'social', fmt: 'thread', rel: .7, seo: .75, m: [['citi', '+', 9, 'Double Cash forever.'], ['wf', '+', 8, 'Active Cash, simpler and there’s a bonus.'], ['pnc', '~', 2, 'PNC’s is fine if you bank there.']], boost: ['+', 5, 'PNC Cash Unlimited: 2% and it shows right in Virtual Wallet. Simple.'] },
+      { id: 'yt', dom: 'youtube.com', t: 'The ONLY 2% Card You Need', type: 'social', fmt: 'video', rel: .62, seo: .7, m: [['wf', '+', 1, 'Active Cash is my pick.'], ['citi', '+', 1, 'Double Cash if you want points.']], boost: ['+', 1, 'If you bank with PNC, Cash Unlimited is the easy 2% choice.'] },
+      { id: 'cfpb', dom: 'consumerfinance.gov', t: 'Credit card basics', type: 'authority', fmt: 'explainer', rel: .66, seo: .72, m: [] },
+      { id: 'comp', dom: 'wellsfargo.com', t: 'Active Cash® Card', type: 'competitor', fmt: 'product', rel: .7, seo: .88, brand: 'wf' }
+    ],
+    student: [
+      { id: 'nw', dom: 'nerdwallet.com', t: 'Best Credit Cards to Build Credit', type: 'affiliate', fmt: 'listicle', rel: .92, seo: .95, m: [['discover', 'Best overall'], ['capone', 'Best flat-rate'], ['chase', 'Best for Chase customers']], boost: [4, 'Best for PNC customers'] },
+      { id: 'cs', dom: 'cnbc.com', path: '/select', t: 'Best credit cards for no credit', type: 'affiliate', fmt: 'listicle', rel: .8, seo: .82, m: [['discover', 'Best overall'], ['capone', 'Best for prequalification']] },
+      { id: 'rd', dom: 'reddit.com', path: '/r/CreditCards', t: 'What should be my first card? (2026 megathread)', type: 'social', fmt: 'thread', rel: .84, seo: .82, m: [['discover', '+', 16, 'Discover it Student, the classic first card.'], ['capone', '+', 11, 'Quicksilver, prequalify first.'], ['chase', '+', 6, 'Freedom Rise if you bank with Chase.']], boost: ['+', 5, 'Got my first card at PNC since I already had Virtual Wallet. Approved with a thin file.'] },
+      { id: 'tk', dom: 'tiktok.com', t: 'First Credit Card Tips Nobody Tells You', type: 'social', fmt: 'video', rel: .52, seo: .4, m: [['discover', '+', 1, 'Discover’s student card is easy to get.']], boost: ['+', 1, 'Your own bank, like PNC, is often the easiest first approval.'] },
+      { id: 'cfpb', dom: 'consumerfinance.gov', t: 'How do I get and keep a good credit score?', type: 'authority', fmt: 'explainer', rel: .7, seo: .75, m: [] },
+      { id: 'comp', dom: 'capitalone.com', t: 'Quicksilver: See if you’re pre-approved', type: 'competitor', fmt: 'product', rel: .62, seo: .85, brand: 'capone' }
+    ],
+    smb: [
+      { id: 'nw', dom: 'nerdwallet.com', t: 'Best Business Credit Cards of 2026', type: 'affiliate', fmt: 'listicle', rel: .9, seo: .95, m: [['chase', 'Best overall'], ['amex', 'Best flat-rate'], ['capone', 'Best for high spend']], boost: [4, 'Best for business banking integration'] },
+      { id: 'tpg', dom: 'thepointsguy.com', t: 'Best Cash Back Business Cards', type: 'affiliate', fmt: 'listicle', rel: .8, seo: .82, m: [['amex', 'Best overall'], ['chase', 'Best bonus'], ['capone', 'Best uncapped']] },
+      { id: 'rd', dom: 'reddit.com', path: '/r/smallbusiness', t: 'Best business card for a service company?', type: 'social', fmt: 'thread', rel: .72, seo: .72, m: [['amex', '+', 7, 'Amex Blue Business Cash, 2% on everything.'], ['chase', '+', 6, 'Ink Unlimited plus Ink Preferred combo.'], ['capone', '~', 3, 'Spark is good but has a fee.']], boost: ['+', 4, 'PNC’s business card shows up in the same dashboard as our checking. Employee limits are easy.'] },
+      { id: 'sba', dom: 'sba.gov', t: 'Business credit basics', type: 'authority', fmt: 'explainer', rel: .7, seo: .75, m: [] },
+      { id: 'comp', dom: 'chase.com', t: 'Ink Business Unlimited®', type: 'competitor', fmt: 'product', rel: .66, seo: .88, brand: 'chase' }
+    ]
+  }
 }
 };
 
-/* ---------- Static reference content ---------- */
+/* ---------- AEO levers (what-if toggles) ---------- */
+const LEVERS = {
+  schema:  { n: 'Page-level schema', on: 'Rolled out', off: 'Before rollout', d: 'JSON-LD on pnc.com product and guide pages (FinancialProduct, FAQPage, audience, dateModified).' },
+  persona: { n: 'Persona-targeted content', on: 'Persona pages live', off: 'General SEO article only', d: 'A pnc.com guide written for this persona’s situation, alongside the general SEO article.' },
+  third:   { n: 'Third-party & social presence', on: 'After outreach', off: 'Current coverage', d: 'PNC placements on affiliate roundups and authentic participation in Reddit and YouTube communities.' }
+};
+
+/* ---------- Pipeline ---------- */
 const PIPELINE = [
   { k: 'understand', n: 'Understand', d: 'Parse the prompt, apply memory, and infer the implied intent behind the words.' },
-  { k: 'fanout', n: 'Fan out', d: 'Rewrite one prompt into many sub-queries: definitions, comparisons, local, fresh, and entity.' },
-  { k: 'retrieve', n: 'Retrieve', d: 'Hit a search index (Bing, Google, Brave) and fetch candidate pages. Unreadable pages drop out here.' },
-  { k: 'rank', n: 'Rank & filter', d: 'Score passages for relevance, authority, freshness, and fit with the intent, then keep the top few.' },
-  { k: 'synth', n: 'Synthesize', d: 'Merge evidence with what the model already knows, resolve conflicts, and decide which brands earn a mention.' },
-  { k: 'render', n: 'Render & cite', d: 'Pick an answer shape for the intent (explainer, shortlist, table, or steps) and attach citations.' }
+  { k: 'fanout', n: 'Fan out', d: 'Rewrite one prompt into many sub-queries: definitions, comparisons, persona, local, fresh and entity.' },
+  { k: 'retrieve', n: 'Retrieve', d: 'Hit a search index and fetch candidate pages. Pages it can’t read drop out, unless structured data survives.' },
+  { k: 'rank', n: 'Rank', d: 'Score passages for relevance, authority, audience match, organic strength and intent fit, then keep the top few.' },
+  { k: 'extract', n: 'Extract', d: 'Read the kept pages for entities: which brands each affiliate list, thread and video mentions, and what PNC’s schema states.' },
+  { k: 'synth', n: 'Synthesize', d: 'Weigh first-party, affiliate, social and memory evidence per brand and decide who earns a mention.' },
+  { k: 'render', n: 'Render & cite', d: 'Pick an answer shape for the intent and attach citations.' }
 ];
-
-const ISSUES = {
-  js:    { n: 'Client-side rendered', d: 'Key content loads via JavaScript; the fetcher sees an empty shell.' },
-  stale: { n: 'Stale', d: 'Last modified more than 6 months ago; down-weighted for time-sensitive intent.' }
-};
