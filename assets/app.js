@@ -580,7 +580,7 @@
       h += `<div class="rh"><span class="ic av ${pk === 'general' ? 'g' : ''}">${P.av}</span>${P.short}</div>`;
       Object.keys(INTENTS).forEach(ik => {
         const st = mentionStats(hm, S.t, pk, ik, 20, S.L), [bg, fg] = rampOf(st.rate), cur = pk === S.p && ik === S.i && hm === S.m;
-        h += `<button class="cell ${cur ? 'cur' : ''}" style="background:${bg};color:${fg}" data-p="${pk}" data-i="${ik}" data-tt="<b>${MODELS[hm].name} · ${P.short} · ${INTENTS[ik].short}</b><br>PNC named in ${Math.round(st.rate * 100)}% of 20 runs${st.avgRank ? '<br>Average position #' + st.avgRank.toFixed(1) : ''}<br><em>Click to load in simulator</em>">${Math.round(st.rate * 100)}%${st.avgRank ? `<small>avg #${st.avgRank.toFixed(1)}</small>` : ''}</button>`;
+        h += `<button class="cell ${cur ? 'is-cur' : ''}" style="background:${bg};color:${fg}" data-p="${pk}" data-i="${ik}" data-tt="<b>${MODELS[hm].name} · ${P.short} · ${INTENTS[ik].short}</b><br>PNC named in ${Math.round(st.rate * 100)}% of 20 runs${st.avgRank ? '<br>Average position #' + st.avgRank.toFixed(1) : ''}<br><em>Click to load in simulator</em>">${Math.round(st.rate * 100)}%${st.avgRank ? `<small>avg #${st.avgRank.toFixed(1)}</small>` : ''}</button>`;
       });
     });
     $('#heat').innerHTML = h;

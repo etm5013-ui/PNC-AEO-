@@ -418,7 +418,8 @@ a{color:var(--pncblue)}
 .heat .rh .ic.av{width:28px;height:28px;font-size:12px}
 .heat button.cell{border:0;border-radius:8px;height:54px;display:grid;place-items:center;font:700 16px var(--head);position:relative;transition:transform .12s}
 .heat button.cell:hover{transform:scale(1.04);z-index:2;box-shadow:0 6px 14px -6px rgba(0,0,0,.4)}
-.heat button.cell.cur{outline:3px solid var(--dg);outline-offset:2px}
+.heat button.cell.is-cur{outline:3px solid var(--dg);outline-offset:2px;z-index:1}
+.heat button.cell.is-cur::before{content:"Current";position:absolute;top:-9px;left:50%;transform:translateX(-50%);font:700 9px/1 var(--head);letter-spacing:.08em;text-transform:uppercase;background:var(--dg);color:#fff;border-radius:99px;padding:3px 7px;white-space:nowrap}
 .heat button.cell small{display:block;font:500 11px var(--body);opacity:.85;margin-top:-6px}
 .scale{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12.5px;color:var(--mute)}
 .scale i{display:block;width:26px;height:10px}
@@ -2426,7 +2427,7 @@ function mentionStats(m, t, p, i, n, levers) {
       h += `<div class="rh"><span class="ic av ${pk === 'general' ? 'g' : ''}">${P.av}</span>${P.short}</div>`;
       Object.keys(INTENTS).forEach(ik => {
         const st = mentionStats(hm, S.t, pk, ik, 20, S.L), [bg, fg] = rampOf(st.rate), cur = pk === S.p && ik === S.i && hm === S.m;
-        h += `<button class="cell ${cur ? 'cur' : ''}" style="background:${bg};color:${fg}" data-p="${pk}" data-i="${ik}" data-tt="<b>${MODELS[hm].name} · ${P.short} · ${INTENTS[ik].short}</b><br>PNC named in ${Math.round(st.rate * 100)}% of 20 runs${st.avgRank ? '<br>Average position #' + st.avgRank.toFixed(1) : ''}<br><em>Click to load in simulator</em>">${Math.round(st.rate * 100)}%${st.avgRank ? `<small>avg #${st.avgRank.toFixed(1)}</small>` : ''}</button>`;
+        h += `<button class="cell ${cur ? 'is-cur' : ''}" style="background:${bg};color:${fg}" data-p="${pk}" data-i="${ik}" data-tt="<b>${MODELS[hm].name} · ${P.short} · ${INTENTS[ik].short}</b><br>PNC named in ${Math.round(st.rate * 100)}% of 20 runs${st.avgRank ? '<br>Average position #' + st.avgRank.toFixed(1) : ''}<br><em>Click to load in simulator</em>">${Math.round(st.rate * 100)}%${st.avgRank ? `<small>avg #${st.avgRank.toFixed(1)}</small>` : ''}</button>`;
       });
     });
     $('#heat').innerHTML = h;
