@@ -44,9 +44,10 @@
   function favColor(dom) { if (dom === 'pnc.com') return '#EF6A00'; let h = 0; for (const c of dom) h = (h * 31 + c.charCodeAt(0)) >>> 0; return FAV_PAL[h % FAV_PAL.length]; }
   function favDom(dom) {
     if (dom === 'pnc.com') return `<span class="fav mk pncf">${PNC_MARK}</span>`;
+    if (typeof FAV_IMG !== 'undefined' && FAV_IMG[dom]) return `<span class="fav im"><img alt="" src="${FAV_IMG[dom]}"></span>`;
     if (FAV_MARK[dom]) return `<span class="fav mk">${FAV_MARK[dom]}</span>`;
     const t = FAV_TILE[dom] || [favColor(dom), dom[0].toUpperCase()];
-    return `<span class="fav tl" style="background:${t[0]}"><b class="${t[1].length > 2 ? 'xs' : t[1].length > 1 ? 's' : ''}">${esc(t[1])}</b><img alt="" loading="lazy" src="https://www.google.com/s2/favicons?domain=${dom}&amp;sz=64" onload="this.classList.add('ok')" onerror="this.remove()"></span>`;
+    return `<span class="fav tl" style="background:${t[0]}"><b class="${t[1].length > 2 ? 'xs' : t[1].length > 1 ? 's' : ''}">${esc(t[1])}</b><img alt="" loading="lazy" data-d="${dom}" src="https://t3.gstatic.com/faviconV2?client=SOCIAL&amp;type=FAVICON&amp;fallback_opts=TYPE,SIZE,URL&amp;url=https://${dom}&amp;size=64" onload="this.classList.add('ok')" onerror="if(!this.dataset.t){this.dataset.t=1;this.src='https://icons.duckduckgo.com/ip3/'+this.dataset.d+'.ico'}else this.remove()"></span>`;
   }
   const fav = (s) => favDom(s.dom);
   const shortDom = (s) => s.dom === 'google.com' ? 'Google Maps' : s.dom.replace(/\.(com|org|gov)$/, '');
@@ -604,7 +605,7 @@
   $('#slTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.closest('[data-lever]')) return; S.schemaPage = b.dataset.id; paintSchemaLab(); });
 
   /* ---------- variability ---------- */
-  const RAMP = [['#FDEBDD', '#7a3500'], ['#F9C9A1', '#7a3500'], ['#F5A262', '#5a2700'], ['#EF6A00', '#fff'], ['#A84A00', '#fff']];
+  const RAMP = [['#FDEBDD', '#7a3500'], ['#F9C9A1', '#7a3500'], ['#F5A262', '#5a2700'], ['#EF6A00', '#2b1300'], ['#A84A00', '#fff']];
   const rampOf = (v) => RAMP[Math.min(4, Math.floor(v * 5 - 1e-9))] || RAMP[0];
   const ALL_ON = { schema: true, persona: true, third: true };
   $('#heatTabs').innerHTML = Object.entries(MODELS).map(([k, m]) => `<button data-k="${k}">${modelLogo(k)}${m.name}</button>`).join('');

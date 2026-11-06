@@ -49,9 +49,13 @@ assets/logos.js     PNC logo and model marks
 assets/avatars.js   persona avatars (DiceBear Avataaars)
 assets/favicons.js  site icons (simple-icons / iconify logos) + brand-colored fallbacks
 tools/build.js      bundles everything into dist/pnc-aeo-lab.html
+tools/fetch-favicons.js  re-downloads and embeds source-site favicons
 ```
+
+## Accessibility
+Text in the demo modes and the main page is checked against WCAG AA contrast (4.5:1, or 3:1 for large text). White text sits on the darker PNC orange `#C25400` (4.6:1). The brand orange `#EF6A00` is kept for bars, borders and accents with no text on them.
 
 ## Caveats
 - **Simulated and illustrative.** Model behaviors are simplified from public documentation and commonly observed patterns, and they change often.
 - PNC product details are for illustration and **must be validated with Product, Legal and Compliance** before external use.
-- Model logos come from `@lobehub/icons` (MIT). Persona avatars were generated with DiceBear's *Avataaars* style (design by Pablo Stanley, free for personal and commercial use). Site icons come from simple-icons and @iconify-json/logos (CC0). Sites without an embedded mark show a brand-colored tile and load their real favicon from Google's favicon service in the viewer's browser when it's reachable. All trademarks belong to their owners and are used for identification only.
+- Model logos come from `@lobehub/icons` (MIT). Persona avatars were generated with DiceBear's *Avataaars* style (design by Pablo Stanley, free for personal and commercial use). Site icons come from simple-icons and @iconify-json/logos (CC0). Each source site's real favicon is embedded in `assets/favicons.js` (fetched by `tools/fetch-favicons.js` from Google's and DuckDuckGo's favicon services), so they show offline. To refresh them, run `node tools/fetch-favicons.js && node tools/build.js` on a machine with internet access. Sites not yet embedded fall back to a brand-colored tile and try to load their favicon live. All trademarks belong to their owners and are used for identification only.

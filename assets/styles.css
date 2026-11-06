@@ -960,3 +960,35 @@ body.noscroll{overflow:hidden}
   .modes{gap:4px}.mode-b{padding:5px 8px}
   .mode-b b{display:none}
 }
+
+/* ================= v4: real favicons + contrast (WCAG AA) ================= */
+:root{--orange-fill:#C25400;--orange-fill-d:#A84A00}
+.fav.im{border-radius:5px;background:#fff;padding:1px}
+.fav.im img{width:100%;height:100%;object-fit:contain;display:block;border-radius:3px}
+/* chat windows never inherit overlay text color */
+.device{color:#1f1f1f}
+.chat-top .mv,.status,.status.done,.chat-in,.chat-in span{color:#6b6b6b}
+.device[data-m=copilot] .chat-top b,.device[data-m=chatgpt] .chat-top b,.device[data-m=claude] .chat-top b{color:#1f1f1f}
+/* white text on orange: use the accessible PNC orange fill (4.6:1) */
+.btn.or,.pr-go,.nextstep,.mode-b b,.levers .seg button.on,.pr-lv .seg button.on,.sl-tabs .seg button.on,.pr-steps span.on i,.pr-rail button.on,.lever b,.qt.persona,.rt.a,.vs-vs,.act-num,.chip.or,.tm-tg,.alert b.k,.cl .tg.OUT,.stg.on .stg-h .n,.rail div.on i,.pk-item.pnc .pos,.tm-av,.vs-tag.or{background:var(--orange-fill)!important;color:#fff}
+.btn.or:hover,.pr-go:hover{background:var(--orange-fill-d)!important}
+.mode-b:hover{background:var(--orange-fill);border-color:var(--orange-fill)}
+.pr-rail button.on i{background:#fff!important;color:var(--orange-fill)!important}
+.rail div.on i{border-color:var(--orange-fill)}
+.lockup b span{color:#ff9a4d}
+.lv-k em{color:#9a4a00}
+.cmiss{color:#9aa8b2!important}
+.cso.sp,.leg i.lg-so,.fx.y,.tile.hit .flag.g,.alert.ok b.k{background:#137a6b!important}
+.pr-steps span{color:#b8c4cc}.pr-steps i{color:#fff}
+.pr-steps span.done{color:#dfe6ea}
+.pr-card small{color:#b8c4cc}
+.pr-keys,.pr-eff,.pr-tip{color:#aab5bd}
+.lever b.inl{background:none!important;color:#ffb27a!important;padding:0!important}
+.nav a.on,.divider .knob,.pmk-cta,.runs i.y{background:var(--orange-fill)!important;color:#fff}
+.runs i.y.r2{background:#f59a4f!important;color:#3d1a00}
+.runs i.y.r3{background:#f8b986!important;color:#5a2700}.runs i.y.r4{background:#fbd4b3!important;color:#5a2700}
+.eyebrow{color:#A84A00}
+.hero .eyebrow,.act.dark .eyebrow,.score-h .eyebrow{color:#ffb27a}
+.score-h .eyebrow{color:#A84A00}
+.pane-h .sub{color:#4d5862}
+.cl .ct{color:#8696a1}
