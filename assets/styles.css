@@ -1018,3 +1018,10 @@ body.noscroll{overflow:hidden}
 .tm-card .tm-av{margin-top:2px}
 
 .vs-hint{display:block;margin-top:4px;color:#a84a00;font-size:13.5px}
+
+/* clickable pipeline rail */
+.rail div{border-radius:10px;outline-offset:2px}
+.rail div.has{cursor:pointer}
+.rail div.has:hover i{transform:scale(1.12);box-shadow:0 0 0 4px rgba(141,200,232,.25)}
+.rail div.has:hover span{color:#fff}
+.rail div i{transition:transform .15s,box-shadow .15s}

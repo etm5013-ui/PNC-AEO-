@@ -1030,6 +1030,13 @@ body.noscroll{overflow:hidden}
 
 .vs-hint{display:block;margin-top:4px;color:#a84a00;font-size:13.5px}
 
+/* clickable pipeline rail */
+.rail div{border-radius:10px;outline-offset:2px}
+.rail div.has{cursor:pointer}
+.rail div.has:hover i{transform:scale(1.12);box-shadow:0 0 0 4px rgba(141,200,232,.25)}
+.rail div.has:hover span{color:#fff}
+.rail div i{transition:transform .15s,box-shadow .15s}
+
 </style>
 </head>
 <body>
@@ -1321,14 +1328,14 @@ const TEAM = {
   name: 'Digital Organic Growth Team',
   sub: 'SEO | AEO | Organic Content',
   managers: [
-    { n: 'Dimi Simovski', r: 'Group Manager', d: 'Leads the Digital Organic Growth team and sets PNC’s organic search and answer-engine strategy across lines of business.' },
-    { n: 'Eric Mayhue', r: 'Manager', d: 'Manages the team’s SEO and AEO roadmap, prioritization and partnerships with product, content and technology teams.' }
+    { n: 'Dimi Simovski', r: 'Digital Marketing Group Manager', d: 'Leads PNC’s Digital Marketing group, overseeing Digital Organic Growth alongside Paid Search, Affiliate and Real-Time Audience Journeys.' },
+    { n: 'Eric Mayhue', r: 'Manager, Digital Organic Growth', d: 'Leads the Digital Organic Growth team, which owns everything in this tool: AEO, SEO and organic content. All six roles below report to Eric.' }
   ],
   members: [
-    { n: 'Ray Judy', r: 'Organic Content Strategy Lead', d: 'Leads organic content strategy, from persona-targeted guides to answer-first pages that models cite.' },
-    { n: 'Brianca Hadnot', r: 'AEO Strategy Lead', d: 'Leads answer engine optimization: how PNC shows up, gets cited and is described across AI assistants.' },
+    { n: 'Ray Judy', r: 'Organic Content Strategy Lead', d: 'Owns organic content strategy and reporting, from persona-targeted guides to the answer-first pages models cite.' },
+    { n: 'Brianca Hadnot', r: 'AEO Strategy Lead', d: 'Leads answer engine optimization and owns affiliate outreach, social media and brand optimization: how PNC shows up, gets cited and is described across AI assistants and third-party sources.' },
     { n: 'Joe Shepker', r: 'Technical AEO / SEO Lead', d: 'Owns the technical foundation: crawlability, rendering, structured data and schema, and site performance.' },
-    { n: 'Alyssa Pugsley', r: 'Organic Content Strategy', d: 'Plans and optimizes organic content so pnc.com answers the questions customers ask, in their words.' },
+    { n: 'Alyssa Pugsley', r: 'Organic Content Strategy · Workflow & Process Owner', d: 'Project-manages all approval workflows and owns the team’s process end to end, seeing content through to completion while supporting content strategy.' },
     { n: 'Martha Summers', r: 'Small Business SEO Strategy', d: 'Drives organic search and AEO strategy for PNC Small Business banking, lending and cash-flow products.' },
     { n: 'Laura Rupert', r: 'C&IB / AMG SEO Strategy', d: 'Leads SEO strategy for Corporate & Institutional Banking and the Asset Management Group.' }
   ]
@@ -2582,8 +2589,14 @@ const FAV_IMG={"ally.com":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAB
   ];
 
   /* ---------- simulator run ---------- */
-  $('#rail').innerHTML = PIPELINE.map((p, i) => `<div><i>${i + 1}</i><span>${p.n}</span></div>`).join('');
-  function railSet(i) { $$('#rail div').forEach((d, j) => { d.classList.toggle('on', j === i); d.classList.toggle('done', j < i || i === 99); }); }
+  $('#rail').innerHTML = PIPELINE.map((p, i) => `<div role="button" tabindex="0" data-k="${i}" aria-label="Jump to step ${i + 1}: ${p.n}"><i>${i + 1}</i><span>${p.n}</span></div>`).join('');
+  // scroll the model view so a step card's header sits at the top
+  function techTo(el) { const tb = $('#techBody'); tb.scrollTop += el.getBoundingClientRect().top - tb.getBoundingClientRect().top - 8; }
+  // click a step circle to jump the model view to that step
+  function railJump(k) { const st = $$('#techBody .stg')[k]; if (st) techTo(st); }
+  $('#rail').addEventListener('click', e => { const d = e.target.closest('[data-k]'); if (d) railJump(+d.dataset.k); });
+  $('#rail').addEventListener('keydown', e => { const d = e.target.closest('[data-k]'); if (d && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); railJump(+d.dataset.k); } });
+  function railSet(i) { const n = $$('#techBody .stg').length; $$('#rail div').forEach((d, j) => { d.classList.toggle('on', j === i); d.classList.toggle('done', j < i || i === 99); d.classList.toggle('has', j < n); d.title = j < n ? `Jump to ${PIPELINE[j].n}` : ''; }); }
   let clock = 0;
   function logReset() { $('#conB').innerHTML = ''; clock = 9 * 3600000 + 41 * 60000 + 2000 + Math.floor(Math.random() * 900); }
   function log(tag, text, cls) {
@@ -2596,7 +2609,7 @@ const FAV_IMG={"ally.com":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAB
     $$('#techBody .stg.on').forEach(x => x.classList.remove('on'));
     const el = document.createElement('div'); el.className = 'stg on';
     el.innerHTML = `<div class="stg-h"><span class="n">${i + 1}</span><b>${PIPELINE[i].n}</b><small>${sub || ''}</small></div><div class="stg-c"></div>`;
-    $('#techBody').appendChild(el); railSet(i); $('#techBody').scrollTop = el.offsetTop - 8; return $('.stg-c', el);
+    $('#techBody').appendChild(el); railSet(i); techTo(el); return $('.stg-c', el);
   }
   function gate() {
     return new Promise(res => {
@@ -2621,7 +2634,7 @@ const FAV_IMG={"ally.com":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAB
     $('#techBody').innerHTML = ''; $('#score').classList.remove('show'); railSet(-1); logReset();
     $('#liveDot').classList.add('on'); $('#conS').textContent = r.M.name + ' · run ' + (S.seed + 1);
     const view = chatView($('#device'), r);
-    const ctx = { sleep: (ms) => new Promise(res => setTimeout(res, ms / S.speed)), live, log, status: view.status, spin, scroll: (c) => { $('#techBody').scrollTop = c.parentNode.offsetTop - 8; }, instant: false };
+    const ctx = { sleep: (ms) => new Promise(res => setTimeout(res, ms / S.speed)), live, log, status: view.status, spin, scroll: (c) => techTo(c.parentNode), instant: false };
     log('PARSE', `prompt received · topic=${S.t} · model=${r.M.name.toLowerCase()}`);
     await view.type(ctx); if (!live()) return;
     for (let i = 0; i < STAGES.length; i++) {

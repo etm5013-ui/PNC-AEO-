@@ -377,8 +377,14 @@
   ];
 
   /* ---------- simulator run ---------- */
-  $('#rail').innerHTML = PIPELINE.map((p, i) => `<div><i>${i + 1}</i><span>${p.n}</span></div>`).join('');
-  function railSet(i) { $$('#rail div').forEach((d, j) => { d.classList.toggle('on', j === i); d.classList.toggle('done', j < i || i === 99); }); }
+  $('#rail').innerHTML = PIPELINE.map((p, i) => `<div role="button" tabindex="0" data-k="${i}" aria-label="Jump to step ${i + 1}: ${p.n}"><i>${i + 1}</i><span>${p.n}</span></div>`).join('');
+  // scroll the model view so a step card's header sits at the top
+  function techTo(el) { const tb = $('#techBody'); tb.scrollTop += el.getBoundingClientRect().top - tb.getBoundingClientRect().top - 8; }
+  // click a step circle to jump the model view to that step
+  function railJump(k) { const st = $$('#techBody .stg')[k]; if (st) techTo(st); }
+  $('#rail').addEventListener('click', e => { const d = e.target.closest('[data-k]'); if (d) railJump(+d.dataset.k); });
+  $('#rail').addEventListener('keydown', e => { const d = e.target.closest('[data-k]'); if (d && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); railJump(+d.dataset.k); } });
+  function railSet(i) { const n = $$('#techBody .stg').length; $$('#rail div').forEach((d, j) => { d.classList.toggle('on', j === i); d.classList.toggle('done', j < i || i === 99); d.classList.toggle('has', j < n); d.title = j < n ? `Jump to ${PIPELINE[j].n}` : ''; }); }
   let clock = 0;
   function logReset() { $('#conB').innerHTML = ''; clock = 9 * 3600000 + 41 * 60000 + 2000 + Math.floor(Math.random() * 900); }
   function log(tag, text, cls) {
@@ -391,7 +397,7 @@
     $$('#techBody .stg.on').forEach(x => x.classList.remove('on'));
     const el = document.createElement('div'); el.className = 'stg on';
     el.innerHTML = `<div class="stg-h"><span class="n">${i + 1}</span><b>${PIPELINE[i].n}</b><small>${sub || ''}</small></div><div class="stg-c"></div>`;
-    $('#techBody').appendChild(el); railSet(i); $('#techBody').scrollTop = el.offsetTop - 8; return $('.stg-c', el);
+    $('#techBody').appendChild(el); railSet(i); techTo(el); return $('.stg-c', el);
   }
   function gate() {
     return new Promise(res => {
@@ -416,7 +422,7 @@
     $('#techBody').innerHTML = ''; $('#score').classList.remove('show'); railSet(-1); logReset();
     $('#liveDot').classList.add('on'); $('#conS').textContent = r.M.name + ' · run ' + (S.seed + 1);
     const view = chatView($('#device'), r);
-    const ctx = { sleep: (ms) => new Promise(res => setTimeout(res, ms / S.speed)), live, log, status: view.status, spin, scroll: (c) => { $('#techBody').scrollTop = c.parentNode.offsetTop - 8; }, instant: false };
+    const ctx = { sleep: (ms) => new Promise(res => setTimeout(res, ms / S.speed)), live, log, status: view.status, spin, scroll: (c) => techTo(c.parentNode), instant: false };
     log('PARSE', `prompt received · topic=${S.t} · model=${r.M.name.toLowerCase()}`);
     await view.type(ctx); if (!live()) return;
     for (let i = 0; i < STAGES.length; i++) {

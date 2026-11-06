@@ -15,14 +15,14 @@ const TEAM = {
   name: 'Digital Organic Growth Team',
   sub: 'SEO | AEO | Organic Content',
   managers: [
-    { n: 'Dimi Simovski', r: 'Group Manager', d: 'Leads the Digital Organic Growth team and sets PNC’s organic search and answer-engine strategy across lines of business.' },
-    { n: 'Eric Mayhue', r: 'Manager', d: 'Manages the team’s SEO and AEO roadmap, prioritization and partnerships with product, content and technology teams.' }
+    { n: 'Dimi Simovski', r: 'Digital Marketing Group Manager', d: 'Leads PNC’s Digital Marketing group, overseeing Digital Organic Growth alongside Paid Search, Affiliate and Real-Time Audience Journeys.' },
+    { n: 'Eric Mayhue', r: 'Manager, Digital Organic Growth', d: 'Leads the Digital Organic Growth team, which owns everything in this tool: AEO, SEO and organic content. All six roles below report to Eric.' }
   ],
   members: [
-    { n: 'Ray Judy', r: 'Organic Content Strategy Lead', d: 'Leads organic content strategy, from persona-targeted guides to answer-first pages that models cite.' },
-    { n: 'Brianca Hadnot', r: 'AEO Strategy Lead', d: 'Leads answer engine optimization: how PNC shows up, gets cited and is described across AI assistants.' },
+    { n: 'Ray Judy', r: 'Organic Content Strategy Lead', d: 'Owns organic content strategy and reporting, from persona-targeted guides to the answer-first pages models cite.' },
+    { n: 'Brianca Hadnot', r: 'AEO Strategy Lead', d: 'Leads answer engine optimization and owns affiliate outreach, social media and brand optimization: how PNC shows up, gets cited and is described across AI assistants and third-party sources.' },
     { n: 'Joe Shepker', r: 'Technical AEO / SEO Lead', d: 'Owns the technical foundation: crawlability, rendering, structured data and schema, and site performance.' },
-    { n: 'Alyssa Pugsley', r: 'Organic Content Strategy', d: 'Plans and optimizes organic content so pnc.com answers the questions customers ask, in their words.' },
+    { n: 'Alyssa Pugsley', r: 'Organic Content Strategy · Workflow & Process Owner', d: 'Project-manages all approval workflows and owns the team’s process end to end, seeing content through to completion while supporting content strategy.' },
     { n: 'Martha Summers', r: 'Small Business SEO Strategy', d: 'Drives organic search and AEO strategy for PNC Small Business banking, lending and cash-flow products.' },
     { n: 'Laura Rupert', r: 'C&IB / AMG SEO Strategy', d: 'Leads SEO strategy for Corporate & Institutional Banking and the Asset Management Group.' }
   ]
