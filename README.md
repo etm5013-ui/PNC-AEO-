@@ -1,5 +1,7 @@
 # PNC AEO Lab
 
+**Version 3.4** (November 2026)
+
 **Built in-house by PNC’s Digital Organic Growth Team · SEO | AEO | Organic Content**
 
 An internal, interactive tool that shows **how ChatGPT, Gemini, Claude and Copilot find and deliver information** when a customer prompts them, and what that means for PNC’s **Answer Engine Optimization (AEO)** strategy.

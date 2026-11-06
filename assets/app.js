@@ -17,6 +17,7 @@
   const avIc = (pk, cls) => `<span class="ic av pic ${cls || ''}">${avatar(pk)}</span>`;
   const PNC_MARK = PNC_SVG.replace(/viewBox="[^"]+"/, 'viewBox="759 185 84 84"').replace(/fill="WORD"/g, 'fill="none"');
   $$('[data-logo="pnc-white"]').forEach(el => el.innerHTML = pncLogo('#FFFFFF'));
+  $$('[data-version]').forEach(el => el.textContent = 'v' + APP_VERSION);
   const W = (d) => `<svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
   const INTENT_ICON = {
     info: W('<circle cx="10" cy="10" r="7.5"/><path d="M10 9v5M10 6.2v.1" stroke-width="2"/>'),

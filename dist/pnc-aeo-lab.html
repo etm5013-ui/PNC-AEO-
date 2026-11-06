@@ -1037,6 +1037,11 @@ body.noscroll{overflow:hidden}
 .rail div.has:hover span{color:#fff}
 .rail div i{transition:transform .15s,box-shadow .15s}
 
+/* version label */
+.ver{font-style:normal;font:700 10.5px/1 var(--head);letter-spacing:.06em;color:#fff;border:1px solid rgba(255,255,255,.45);border-radius:99px;padding:2px 7px;margin-left:6px;vertical-align:3px}
+.ver-line{color:#c9d0d5;font:600 12.5px var(--head);letter-spacing:.04em;margin-bottom:8px!important}
+.ver-line b{color:#fff}
+
 </style>
 </head>
 <body>
@@ -1044,7 +1049,7 @@ body.noscroll{overflow:hidden}
 <header class="top">
   <div class="wrap">
     <a class="lockup" href="#top" aria-label="PNC AEO Lab, home">
-      <span class="pnc" data-logo="pnc-white"></span><i></i><span class="lk-t"><b>AEO <span>Lab</span></b><small>Digital Organic Growth</small></span>
+      <span class="pnc" data-logo="pnc-white"></span><i></i><span class="lk-t"><b>AEO <span>Lab</span> <em class="ver" data-version>v3.4</em></b><small>Digital Organic Growth</small></span>
     </a>
     <nav class="nav" aria-label="Sections">
       <a href="#sim">Simulator</a>
@@ -1258,6 +1263,7 @@ body.noscroll{overflow:hidden}
       <div class="tm-body" id="teamBody"></div>
     </details>
     <div class="disc">
+      <p class="ver-line">PNC AEO Lab <b data-version>v3.4</b> · Digital Organic Growth Team · November 2026</p>
       <p><strong style="color:#fff">For internal use only. Simulated and illustrative.</strong> Responses, sources, schema and scores come from a simplified model of LLM retrieval built by the Digital Organic Growth Team. They are not live output from ChatGPT, Gemini, Google AI Overviews, Claude or Copilot. Model behaviors reflect public documentation and commonly observed patterns, and change frequently.</p>
       <p>PNC product names, features and schema examples are for illustration and must be validated with Product, Legal and Compliance before any external use. Third-party names and logos are trademarks of their respective owners, used here for identification only.</p>
     </div>
@@ -1267,7 +1273,7 @@ body.noscroll{overflow:hidden}
 <!-- ============ PRESENTATION MODE ============ -->
 <div class="pres" id="pres" hidden role="dialog" aria-modal="true" aria-label="Presentation mode">
   <div class="pr-top">
-    <span class="pnc" data-logo="pnc-white"></span><span class="pr-title"><b>AEO Lab</b><small>Presentation mode</small></span>
+    <span class="pnc" data-logo="pnc-white"></span><span class="pr-title"><b>AEO Lab <em class="ver" data-version>v3.4</em></b><small>Presentation mode</small></span>
     <div class="pr-steps" id="prSteps"></div>
     <button class="pr-exit" id="prExit">Exit ✕</button>
   </div>
@@ -1278,7 +1284,7 @@ body.noscroll{overflow:hidden}
 <!-- ============ VS MODE ============ -->
 <div class="vsm" id="vs" hidden role="dialog" aria-modal="true" aria-label="VS mode">
   <div class="pr-top">
-    <span class="pnc" data-logo="pnc-white"></span><span class="pr-title"><b>AEO Lab</b><small>VS mode</small></span>
+    <span class="pnc" data-logo="pnc-white"></span><span class="pr-title"><b>AEO Lab <em class="ver" data-version>v3.4</em></b><small>VS mode</small></span>
     <span class="vs-intro">Run the same topic and intent side by side with a different model, persona or set of AEO levers.</span>
     <button class="pr-exit" id="vsExit">Exit ✕</button>
   </div>
@@ -1324,12 +1330,14 @@ const MODEL_SVG={
    buildScenario() in engine.js.
    ===================================================================== */
 
+const APP_VERSION = '3.4';
+
 const TEAM = {
   name: 'Digital Organic Growth Team',
   sub: 'SEO | AEO | Organic Content',
   managers: [
     { n: 'Dimi Simovski', r: 'Digital Marketing Group Manager', d: 'Leads PNC’s Digital Marketing group, overseeing Digital Organic Growth alongside Paid Search, Affiliate and Real-Time Audience Journeys.' },
-    { n: 'Eric Mayhue', r: 'Manager, Digital Organic Growth', d: 'Leads the Digital Organic Growth team, which owns everything in this tool: AEO, SEO and organic content. All six roles below report to Eric.' }
+    { n: 'Eric Mayhue', r: 'Manager, Digital Organic Growth', d: 'Leads PNC’s Digital Organic Growth team, overseeing SEO, AEO and Organic Content Strategy to grow PNC’s visibility across search and AI-driven experiences.' }
   ],
   members: [
     { n: 'Ray Judy', r: 'Organic Content Strategy Lead', d: 'Owns organic content strategy and reporting, from persona-targeted guides to the answer-first pages models cite.' },
@@ -2229,6 +2237,7 @@ const FAV_IMG={"ally.com":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAB
   const avIc = (pk, cls) => `<span class="ic av pic ${cls || ''}">${avatar(pk)}</span>`;
   const PNC_MARK = PNC_SVG.replace(/viewBox="[^"]+"/, 'viewBox="759 185 84 84"').replace(/fill="WORD"/g, 'fill="none"');
   $$('[data-logo="pnc-white"]').forEach(el => el.innerHTML = pncLogo('#FFFFFF'));
+  $$('[data-version]').forEach(el => el.textContent = 'v' + APP_VERSION);
   const W = (d) => `<svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
   const INTENT_ICON = {
     info: W('<circle cx="10" cy="10" r="7.5"/><path d="M10 9v5M10 6.2v.1" stroke-width="2"/>'),

@@ -11,12 +11,14 @@
    buildScenario() in engine.js.
    ===================================================================== */
 
+const APP_VERSION = '3.4';
+
 const TEAM = {
   name: 'Digital Organic Growth Team',
   sub: 'SEO | AEO | Organic Content',
   managers: [
     { n: 'Dimi Simovski', r: 'Digital Marketing Group Manager', d: 'Leads PNC’s Digital Marketing group, overseeing Digital Organic Growth alongside Paid Search, Affiliate and Real-Time Audience Journeys.' },
-    { n: 'Eric Mayhue', r: 'Manager, Digital Organic Growth', d: 'Leads the Digital Organic Growth team, which owns everything in this tool: AEO, SEO and organic content. All six roles below report to Eric.' }
+    { n: 'Eric Mayhue', r: 'Manager, Digital Organic Growth', d: 'Leads PNC’s Digital Organic Growth team, overseeing SEO, AEO and Organic Content Strategy to grow PNC’s visibility across search and AI-driven experiences.' }
   ],
   members: [
     { n: 'Ray Judy', r: 'Organic Content Strategy Lead', d: 'Owns organic content strategy and reporting, from persona-targeted guides to the answer-first pages models cite.' },
