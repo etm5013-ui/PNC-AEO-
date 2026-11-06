@@ -51,7 +51,7 @@
   }
   const fav = (s) => favDom(s.dom);
   const shortDom = (s) => s.dom === 'google.com' ? 'Google Maps' : s.dom.replace(/\.(com|org|gov)$/, '');
-  const kindLabel = (s) => ({ product: 'Product page', article: 'General SEO article', persona: 'Persona guide', local: 'Local listing' }[s.kind] || SRC_TYPES[s.type].n);
+  const kindLabel = (s) => ({ product: 'Product page', article: 'General SEO article', persona: 'Persona guide', local: 'Local listing', offer: 'Bonus offer page' }[s.kind] || SRC_TYPES[s.type].n);
 
   /* ---------- tooltip ---------- */
   const tt = $('#tt');
@@ -211,7 +211,9 @@
     const org = { '@type': 'BankOrCreditUnion', '@id': 'https://www.pnc.com/#org', name: 'PNC Bank', url: 'https://www.pnc.com', sameAs: ['https://www.wikidata.org/wiki/Q38928'] };
     const audOf = (pp) => pp === 'smb' ? { '@type': 'BusinessAudience', audienceType: 'Small business owners', numberOfEmployees: { '@type': 'QuantitativeValue', minValue: 1, maxValue: 99 } } : { '@type': 'PeopleAudience', audienceType: PERSONAS[pp].aud.replace(/^./, c => c.toUpperCase()) };
     let main;
-    if (s.kind === 'persona' || s.kind === 'article') {
+    if (s.kind === 'offer') {
+      main = { '@type': 'Offer', '@id': url + '#offer', name: 'PNC checking account bonus offer', description: 'Earn a cash bonus when you open an eligible PNC checking account and meet the qualifying direct deposit requirements. See terms for details.', category: 'Checking account bonus', eligibleCustomerType: 'New PNC checking customers', offeredBy: { '@id': org['@id'] }, itemOffered: { '@type': ['FinancialProduct', 'BankAccount'], name: (T.products.default.pnc)[0], url: 'https://www.pnc.com/en' + T.pages.default.path }, url };
+    } else if (s.kind === 'persona' || s.kind === 'article') {
       main = { '@type': 'Article', '@id': url + '#article', headline: s.t, author: { '@id': org['@id'] }, publisher: { '@id': org['@id'] }, datePublished: '2026-09-15', dateModified: '2026-11-02', about: { '@type': 'Thing', name: (T.cat[seg] || T.cat.default)[0] }, mentions: [{ '@type': 'FinancialProduct', name: prod[0], url: 'https://www.pnc.com/en' + (T.pages[seg] || T.pages.default).path }] };
       if (s.kind === 'persona') main.audience = audOf(s.aud);
     } else if (T.schemaType === 'MobileApplication') {
@@ -220,7 +222,7 @@
       main = { '@type': T.schemaType === 'FinancialService' ? 'FinancialService' : ['FinancialProduct', T.schemaType], '@id': url + '#product', name: prod[0], provider: { '@id': org['@id'] }, description: prod[1], category: T.name, feesAndCommissionsSpecification: prod[2], additionalProperty: [{ '@type': 'PropertyValue', name: T.cols[1], value: prod[3] }, { '@type': 'PropertyValue', name: T.cols[2], value: prod[4] }], areaServed: 'US', url };
       if (seg === 'smb' || seg === 'student' || seg === 'ema') main.audience = audOf(seg);
     }
-    const faq = { '@type': 'FAQPage', mainEntity: (s.kind === 'persona' ? [[`What should ${P.aud || 'customers'} look for?`, T.pp[p] || prod[1]], [T.faqQ[0], prod[2]]] : [[T.faqQ[0], prod[2]], [T.faqQ[1], prod[3]]]).map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) };
+    const faq = { '@type': 'FAQPage', mainEntity: (s.kind === 'offer' ? [['How do I qualify for the PNC checking bonus?', 'Open an eligible checking account and meet the qualifying direct deposit requirements within the promotional period. See the offer terms on this page.'], ['Who is eligible?', 'New PNC checking customers; terms and availability vary by market.']] : s.kind === 'persona' ? [[`What should ${P.aud || 'customers'} look for?`, T.pp[p] || prod[1]], [T.faqQ[0], prod[2]]] : [[T.faqQ[0], prod[2]], [T.faqQ[1], prod[3]]]).map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) };
     const page = { '@type': 'WebPage', '@id': url, url, inLanguage: 'en-US', dateModified: '2026-11-02', isPartOf: { '@id': 'https://www.pnc.com/#website' } };
     return { '@context': 'https://schema.org', '@graph': [main, faq, page, org] };
   }
@@ -306,7 +308,7 @@
       r.sources.forEach(s => {
         if (!cut && s.status !== 'cited') { html += `<div class="cut">CUTOFF · ${esc(M.name)} cites ~${r.cited.length}</div>`; cut = true; }
         const tags = (s.tags || []).filter(x => x !== 'JSON-LD' || s.type === 'owned').map(x => `<span class="rt ${/match$/.test(x) ? 'a' : /mismatch|General/.test(x) ? 'g' : 'j'}">${x}</span>`).join('');
-        html += `<div class="rk ${s.status}" data-tt="<b>${esc(s.dom)}</b><br>${esc(s.t)}<br>${SRC_TYPES[s.type].n} · score ${s.score.toFixed(2)}<br>Organic position #${s.org || '—'}${s.reason ? '<br>' + esc(s.reason) : ''}"><span class="d">${fav(s)}${s.type === 'owned' ? `<b style="color:#ffb27a">${esc(s.kind === 'product' ? 'pnc · product' : s.kind === 'persona' ? 'pnc · persona' : s.kind === 'article' ? 'pnc · general' : 'pnc · maps')}</b>` : esc(shortDom(s))}${aio ? `<em class="org">#${s.org || '–'}</em>` : ''}</span><span class="tr"><i style="width:0;background:${SRC_TYPES[s.type].c}" data-w="${s.score / maxS * 100}"></i>${tags ? `<span class="rts">${tags}</span>` : ''}</span><span class="v">${s.status === 'dropped' ? '—' : s.score.toFixed(2)}</span></div>`;
+        html += `<div class="rk ${s.status}" data-tt="<b>${esc(s.dom)}</b><br>${esc(s.t)}<br>${SRC_TYPES[s.type].n} · score ${s.score.toFixed(2)}<br>Organic position #${s.org || '—'}${s.reason ? '<br>' + esc(s.reason) : ''}"><span class="d">${fav(s)}${s.type === 'owned' ? `<b style="color:#ffb27a">${esc(s.kind === 'product' ? 'pnc · product' : s.kind === 'offer' ? 'pnc · bonus offer' : s.kind === 'persona' ? 'pnc · persona' : s.kind === 'article' ? 'pnc · general' : 'pnc · maps')}</b>` : esc(shortDom(s))}${aio ? `<em class="org">#${s.org || '–'}</em>` : ''}</span><span class="tr"><i style="width:0;background:${SRC_TYPES[s.type].c}" data-w="${s.score / maxS * 100}"></i>${tags ? `<span class="rts">${tags}</span>` : ''}</span><span class="v">${s.status === 'dropped' ? '—' : s.score.toFixed(2)}</span></div>`;
       });
       html += '</div><div class="leg">' + Object.entries(SRC_TYPES).map(([k, t]) => `<span><i style="background:${t.c}"></i>${t.n}</span>`).join('') + '<span><i style="background:#4d5c67"></i>Not cited</span></div>';
       c.innerHTML = html; await ctx.sleep(60);
@@ -529,7 +531,7 @@
   }
   function pageMock(r, s) {
     const T = r.T || TOPICS[r.t], prod = (T.products[segFor(r.t, r.p)] || T.products.default).pnc;
-    return `<div class="pmk"><div class="pmk-top">${pncLogo('#333F48')}</div><small class="bc">Home › ${esc(T.name)} › ${esc(s.kind === 'product' ? prod[0] : 'Insights')}</small><h4>${esc(s.t)}</h4><p>${esc(s.kind === 'persona' ? T.pp[s.aud] + ' ' + s.line : s.kind === 'article' ? (T.points.default[0][1]) : prod[1])}</p>${s.kind === 'product' ? `<div class="pmk-f">${T.cols.map((c, j) => `<div><small>${esc(c)}</small><b>${esc(prod[2 + j])}</b></div>`).join('')}</div><span class="pmk-cta">Apply now</span>` : `<span class="pmk-tag">${s.kind === 'persona' ? 'Written for ' + esc(PERSONAS[s.aud].aud) : 'General audience'}</span>`}</div>`;
+    return `<div class="pmk"><div class="pmk-top">${pncLogo('#333F48')}</div><small class="bc">Home › ${esc(T.name)} › ${esc(s.kind === 'offer' ? 'Bonus offer' : s.kind === 'product' ? prod[0] : 'Insights')}</small><h4>${esc(s.t)}</h4><p>${esc(s.kind === 'offer' ? 'New checking customers can earn a cash bonus with qualifying direct deposits. See how to qualify, eligible accounts and full terms.' : s.kind === 'persona' ? T.pp[s.aud] + ' ' + s.line : s.kind === 'article' ? (T.points.default[0][1]) : prod[1])}</p>${s.kind === 'offer' ? `<div class="pmk-f"><div><small>Offer</small><b>Cash bonus</b></div><div><small>How to qualify</small><b>Qualifying direct deposits</b></div><div><small>Eligible</small><b>New checking customers</b></div></div><span class="pmk-cta">Open an account</span>` : s.kind === 'product' ? `<div class="pmk-f">${T.cols.map((c, j) => `<div><small>${esc(c)}</small><b>${esc(prod[2 + j])}</b></div>`).join('')}</div><span class="pmk-cta">Apply now</span>` : `<span class="pmk-tag">${s.kind === 'persona' ? 'Written for ' + esc(PERSONAS[s.aud].aud) : 'General audience'}</span>`}</div>`;
   }
   document.addEventListener('click', e => {
     const pk = e.target.closest('[data-peek]');
@@ -741,9 +743,21 @@
   /* =====================================================================
      VS MODE
      ===================================================================== */
-  const VS = { a: { m: 'chatgpt', p: 'general' }, b: { m: 'chatgpt', p: 'student' }, rs: {}, token: 0 };
+  const VS = { a: { m: 'chatgpt', p: 'student', L: { schema: false, persona: false, third: false } }, b: { m: 'chatgpt', p: 'student', L: { schema: true, persona: true, third: true } }, rs: {}, token: 0 };
+  const LK = Object.keys(LEVERS);
+  const VS_PRESETS = [
+    ['Persona vs persona', () => { const m = VS.a.m, L = Object.assign({}, S.L); VS.a = { m, p: 'general', L }; VS.b = { m, p: VS.b.p === 'general' ? 'student' : VS.b.p, L: Object.assign({}, L) }; }],
+    ['Model vs model', () => { const p = VS.a.p, L = Object.assign({}, S.L); VS.a = { m: 'chatgpt', p, L }; VS.b = { m: 'claude', p, L: Object.assign({}, L) }; }],
+    ['Schema off vs on', () => lvPreset({ schema: false }, { schema: true })],
+    ['Persona content off vs on', () => lvPreset({ persona: false }, { persona: true })],
+    ['Outreach off vs on', () => lvPreset({ third: false }, { third: true })],
+    ['All levers off vs on', () => lvPreset({ schema: false, persona: false, third: false }, { schema: true, persona: true, third: true })]
+  ];
+  function lvPreset(a, b) { const base = { schema: true, persona: true, third: false }; VS.b.m = VS.a.m; VS.b.p = VS.a.p === 'general' ? 'student' : VS.a.p; VS.a.p = VS.b.p; VS.a.L = Object.assign({}, base, a); VS.b.L = Object.assign({}, base, b); }
+  const vsLeverHTML = (sd) => `<div class="vs-row"><span class="vs-k">Levers</span><div class="vs-levers">${LK.map(k => `<div class="vs-lvt"><span>${LEVERS[k].n}</span><span class="seg sm" data-vside="${sd}" data-vlk="${k}"><button data-v="0" class="${!VS[sd].L[k] ? 'on' : ''}">Off</button><button data-v="1" class="${VS[sd].L[k] ? 'on' : ''}">On</button></span></div>`).join('')}</div></div>`;
+  const lvBadges = (L) => LK.map(k => `<span class="lvb ${L[k] ? 'on' : ''}" data-tt="${esc(LEVERS[k].n)}: ${L[k] ? esc(LEVERS[k].on) : esc(LEVERS[k].off)}">${{ schema: 'Schema', persona: 'Persona content', third: 'Outreach' }[k]} ${L[k] ? 'on' : 'off'}</span>`).join('');
   const vsEl = $('#vs');
-  function vsOpen() { VS.t = S.t; VS.i = S.i; vsEl.hidden = false; document.body.classList.add('noscroll'); vsPaint(); }
+  function vsOpen() { VS.t = VS.t || S.t; VS.i = VS.i || S.i; vsEl.hidden = false; document.body.classList.add('noscroll'); vsPaint(); }
   function vsClose() { vsEl.hidden = true; VS.token++; document.body.classList.remove('noscroll'); }
   $$('[data-open="vs"]').forEach(b => b.addEventListener('click', vsOpen));
   $('#vsExit').addEventListener('click', vsClose);
@@ -755,11 +769,17 @@
   }
   function vsPaint() {
     $('#vsShared').innerHTML = `<div class="vs-row"><span class="vs-k">Topic</span><div class="vchips">${chipsHTML('t', '', VS.t)}</div></div><div class="vs-row"><span class="vs-k">Intent</span><div class="vchips">${chipsHTML('i', '', VS.i)}</div></div>`;
-    ['a', 'b'].forEach(sd => { $(`#vsCfg-${sd}`).innerHTML = `<div class="vs-side-h"><span class="vs-tag">${sd.toUpperCase()}</span>${avIc(VS[sd].p)}<b>${esc(PERSONAS[VS[sd].p].short)} · ${esc(MODELS[VS[sd].m].name)}</b></div><div class="vs-row"><span class="vs-k">Model</span><div class="vchips">${chipsHTML('m', sd, VS[sd].m)}</div></div><div class="vs-row"><span class="vs-k">Persona</span><div class="vchips">${chipsHTML('p', sd, VS[sd].p)}</div></div>`; });
-    const same = VS.a.m === VS.b.m && VS.a.p === VS.b.p;
-    $('#vsNote').textContent = same ? 'A and B are identical. Change the model or persona on one side to compare.' : VS.a.m !== VS.b.m && VS.a.p !== VS.b.p ? 'Both model and persona differ: differences mix the two effects.' : VS.a.m !== VS.b.m ? 'Same persona, different models: isolates how each model retrieves.' : 'Same model, different personas: isolates the effect of who is asking.';
+    $('#vsPresets').innerHTML = '<span class="vs-k">Quick</span>' + VS_PRESETS.map(([n], j) => `<button class="vchip qp" data-preset="${j}">${n}</button>`).join('');
+    ['a', 'b'].forEach(sd => { $(`#vsCfg-${sd}`).innerHTML = `<div class="vs-side-h"><span class="vs-tag">${sd.toUpperCase()}</span>${avIc(VS[sd].p)}<b>${esc(PERSONAS[VS[sd].p].short)} · ${esc(MODELS[VS[sd].m].name)}</b></div><div class="vs-row"><span class="vs-k">Model</span><div class="vchips">${chipsHTML('m', sd, VS[sd].m)}</div></div><div class="vs-row"><span class="vs-k">Persona</span><div class="vchips">${chipsHTML('p', sd, VS[sd].p)}</div></div>${vsLeverHTML(sd)}`; });
+    const dm = VS.a.m !== VS.b.m, dp = VS.a.p !== VS.b.p, dl = LK.filter(k => VS.a.L[k] !== VS.b.L[k]);
+    const parts = [dm && 'model', dp && 'persona', dl.length && (dl.length === 1 ? LEVERS[dl[0]].n.toLowerCase() : 'AEO levers')].filter(Boolean);
+    const cmpHint = dl.length && VS.i === 'compare' ? ' <span class="vs-hint">Tip: in “Comparing options” PNC is named in the prompt, so it always appears. Try “Looking for recommendations” to see visibility move.</span>' : '';
+    $('#vsNote').innerHTML = !parts.length ? 'A and B are identical. Change the model, persona or a lever on one side to compare.' : parts.length === 1 ? `Only the <b>${parts[0]}</b> differs, so every difference below comes from it.` : `<b>${parts.join(' and ')}</b> all differ, so the differences mix those effects.`;
+    $('#vsNote').innerHTML += cmpHint;
   }
   vsEl.addEventListener('click', e => {
+    const pr = e.target.closest('[data-preset]'); if (pr) { VS_PRESETS[+pr.dataset.preset][1](); vsPaint(); return; }
+    const lb = e.target.closest('[data-vlk] button'); if (lb) { const g = lb.parentNode; VS[g.dataset.vside].L[g.dataset.vlk] = lb.dataset.v === '1'; vsPaint(); return; }
     const b = e.target.closest('[data-set]'); if (!b) return;
     const k = b.dataset.set, v = b.dataset.k;
     if (b.dataset.side) VS[b.dataset.side][k] = v; else VS[k] = v;
@@ -768,9 +788,9 @@
   $('#vsRun').addEventListener('click', vsRun);
   async function vsRun() {
     const tok = ++VS.token, live = () => tok === VS.token;
-    const rs = ['a', 'b'].map(sd => simulate(VS[sd].m, VS.t, VS[sd].p, VS.i, 0, S.L));
+    const rs = ['a', 'b'].map(sd => simulate(VS[sd].m, VS.t, VS[sd].p, VS.i, 0, VS[sd].L));
     VS.rs = { a: rs[0], b: rs[1] };
-    $('#vsOut').innerHTML = `<div class="vs-cols">${['a', 'b'].map((sd, j) => `<div class="vs-col" data-rid="${sd}"><div class="vs-col-h"><span class="vs-tag">${sd.toUpperCase()}</span>${avIc(rs[j].p)}<div><b>${esc(rs[j].P.name)}</b><small><span class="ml">${modelLogo(rs[j].modelKey)}</span>${esc(rs[j].M.name)}</small></div></div><div class="device vs-dev">${DEVICE_HTML}</div><div class="vs-sum" id="vsSum-${sd}"></div></div>`).join('')}</div><div class="vs-diff" id="vsDiff"></div>`;
+    $('#vsOut').innerHTML = `<div class="vs-cols">${['a', 'b'].map((sd, j) => `<div class="vs-col" data-rid="${sd}"><div class="vs-col-h"><span class="vs-tag">${sd.toUpperCase()}</span>${avIc(rs[j].p)}<div><b>${esc(rs[j].P.name)}</b><small><span class="ml">${modelLogo(rs[j].modelKey)}</span>${esc(rs[j].M.name)}</small><div class="lvbs">${lvBadges(rs[j].L)}</div></div></div><div class="device vs-dev">${DEVICE_HTML}</div><div class="vs-sum" id="vsSum-${sd}"></div></div>`).join('')}</div><div class="vs-diff" id="vsDiff"></div>`;
     $('#vsOut').scrollIntoView({ behavior: 'smooth', block: 'start' });
     const ctx = { sleep: (ms) => new Promise(res => setTimeout(res, ms / 1.5)), live, instant: false, spin };
     await Promise.all(rs.map(async (r, j) => {
@@ -793,6 +813,7 @@
       <div class="vs-blk"><small>Brands named</small><div class="vs-src">${r.order.map((b, j) => `<span class="${b === 'pnc' ? 'pnc' : ''}"><em>${j + 1}</em>${favDom(BRANDS[b].dom)}${esc(BRANDS[b].n)}</span>`).join('')}</div></div>
       <div class="vs-blk"><small>Where PNC’s evidence came from</small><div class="mixbar">${ev.filter(x => x[2] > .005).map(x => `<i style="width:${x[2] / evT * 100}%;background:${x[1]}" data-tt="<b>${x[0]}</b> ${x[2].toFixed(2)}"></i>`).join('')}</div><div class="mixleg">${ev.map(x => `<span><i style="background:${x[1]}"></i>${x[0]} <em>${Math.round(x[2] / evT * 100)}%</em></span>`).join('')}</div></div>`;
   }
+  const evMini = (r) => { const p = r.pnc, ev = [['First-party', '#EF6A00', p.fp], ['Affiliate', '#2A6AB0', p.aff], ['Social', '#8A5CC2', p.soc], ['Memory', '#9aa4ab', p.mem]], t2 = ev.reduce((x, y) => x + y[2], 0) || 1; return `<span class="evm"><span class="mixbar sm">${ev.filter(x => x[2] > .005).map(x => `<i style="width:${x[2] / t2 * 100}%;background:${x[1]}" data-tt="<b>${x[0]}</b> ${x[2].toFixed(2)}"></i>`).join('')}</span><small>total evidence ${(p.fp + p.aff + p.soc + p.mem).toFixed(2)}</small></span>`; };
   function vsDiff(a, b) {
     const sa = mentionStats(a.modelKey, a.t, a.p, a.i, 20, a.L), sb = mentionStats(b.modelKey, b.t, b.p, b.i, 20, b.L);
     const only = (x, y, f) => x.filter(v => !y.some(w => f(w) === f(v)));
@@ -807,10 +828,13 @@
     const why = [];
     if (a.p !== b.p) why.push(`${a.p === 'general' || b.p === 'general' ? 'Only the persona side fans out persona sub-queries and can match a persona guide. ' : ''}Different personas pull different source pools and needs.`);
     if (a.modelKey !== b.modelKey) why.push(`${a.M.name} ${a.M.tip} ${b.M.name} ${b.M.tip}`);
+    LK.filter(k => a.L[k] !== b.L[k]).forEach(k => { const on = a.L[k] ? 'A' : 'B'; why.push(`${on} has ${LEVERS[k].n.toLowerCase()} on (${LEVERS[k].d.replace(/\.$/, '')}). ${{ schema: 'Readable, labeled PNC facts lift PNC pages in ranking and make its details exact.', persona: 'The persona guide matches the persona sub-queries the model fans out.', third: 'PNC appears on more of the affiliate lists and threads the model reads, so more independent sources vote for PNC.' }[k]}`); });
     return `<h3>What changed between A and B</h3><div class="vd-hd"><span>${avIc(a.p, 'sm')}A · ${esc(a.P.short)} · ${esc(a.M.name)}</span><span></span><span>${avIc(b.p, 'sm')}B · ${esc(b.P.short)} · ${esc(b.M.name)}</span></div>
       ${row('PNC in the answer', outcome(a), outcome(b), w(a.pnc.mentioned ? 10 - a.pnc.rank : 0, b.pnc.mentioned ? 10 - b.pnc.rank : 0))}
       ${row('Mention rate · 20 runs', Math.round(sa.rate * 100) + '%', Math.round(sb.rate * 100) + '%', w(sa.rate, sb.rate))}
       ${row('PNC pages cited', a.pnc.ownedCited + ' of ' + a.pnc.totalCited, b.pnc.ownedCited + ' of ' + b.pnc.totalCited, w(a.pnc.ownedCited, b.pnc.ownedCited))}
+      ${LK.some(k => a.L[k] !== b.L[k]) ? row('AEO levers', `<span class="lvbs">${lvBadges(a.L)}</span>`, `<span class="lvbs">${lvBadges(b.L)}</span>`) : ''}
+      ${row('Where PNC’s evidence came from', evMini(a), evMini(b))}
       ${row('Persona sub-queries', a.queries.filter(q => q.type === 'persona').length, b.queries.filter(q => q.type === 'persona').length)}
       ${row('Queries only on this side', lst(qa, q => `<span class="vq ${q.type === 'persona' ? 'per' : ''}">${esc(q.q)}</span>`), lst(qb, q => `<span class="vq ${q.type === 'persona' ? 'per' : ''}">${esc(q.q)}</span>`))}
       ${row('Sources only on this side', lst(ca, srcChip), lst(cb, srcChip))}
@@ -835,11 +859,11 @@
 
   /* ---------- team ---------- */
   const ini = (n) => n.split(' ').map(x => x[0]).join('');
-  $('#teamBody').innerHTML = `<div class="tm-mgr">${TEAM.managers.map(n => `<div class="tm-card mgr"><span class="tm-av">${ini(n)}</span><div><b>${esc(n)}</b><small>Manager</small></div></div>`).join('')}</div><div class="tm-k">Digital Organic Growth Marketing Team</div><div class="tm-list">${TEAM.members.map(n => `<div class="tm-card"><span class="tm-av sm">${ini(n)}</span><b>${esc(n)}</b></div>`).join('')}</div>`;
+  $('#teamBody').innerHTML = `<div class="tm-mgr">${TEAM.managers.map(x => `<div class="tm-card mgr"><span class="tm-av">${ini(x.n)}</span><div><b>${esc(x.n)}</b><small>${esc(x.r)}</small><p>${esc(x.d)}</p></div></div>`).join('')}</div><div class="tm-k">Digital Organic Growth Marketing Team</div><div class="tm-list">${TEAM.members.map(x => `<div class="tm-card"><span class="tm-av sm">${ini(x.n)}</span><div><b>${esc(x.n)}</b><small>${esc(x.r)}</small><p>${esc(x.d)}</p></div></div>`).join('')}</div>`;
 
   /* ---------- hero ---------- */
   (function hero() {
-    const qs = ['best student checking', 'checking for college students', 'PNC Virtual Wallet Student', 'banks near Penn State', 'reddit college bank', 'student account 2026'];
+    const qs = ['best student checking', 'checking for college students', 'PNC Simple Checking', 'banks near Penn State', 'reddit college bank', 'student account 2026'];
     const src = ['nerdwallet.com', 'pnc.com', 'reddit.com', 'youtube.com'];
     let s = '<svg viewBox="0 0 560 400">';
     qs.forEach((q, i) => { const y = 40 + i * 62; s += `<path class="hv-line" d="M120 200 C 160 200, 160 ${y}, 200 ${y}"/>`; });

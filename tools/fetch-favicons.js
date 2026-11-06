@@ -7,7 +7,7 @@ const root = path.join(__dirname, '..');
 global.window = {};
 const ctx = {}; new Function('ctx', fs.readFileSync(path.join(root, 'assets/data.js'), 'utf8') + '\nctx.TOPICS=TOPICS;ctx.BRANDS=BRANDS;')(ctx);
 const doms = new Set(Object.values(ctx.BRANDS).map(b => b.dom));
-Object.values(ctx.TOPICS).forEach(T => Object.values(T.pools).forEach(pool => pool.forEach(s => doms.add(s.dom))));
+Object.values(ctx.TOPICS).forEach(T => { Object.values(T.pools).forEach(pool => pool.forEach(s => doms.add(s.dom))); (T.bonusSrc || []).forEach(s => doms.add(s.dom)); });
 doms.delete('google.com'); doms.add('maps.google.com');
 const get = (url) => { try { return execFileSync('curl', ['-sS', '-L', '--max-time', '20', '-w', '\n%{http_code} %{content_type}', url], { maxBuffer: 5e6 }); } catch (e) { return null; } };
 const out = {};

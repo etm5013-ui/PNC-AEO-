@@ -41,6 +41,10 @@ function buildScenario(t, p, i, L) {
     const pp = T.ppages[p];
     src.push({ id: 'pncA', dom: 'pnc.com', path: pp.path, t: pp.t, type: 'owned', fmt: 'guide', rel: .76, seo: .48, brand: 'pnc', aud: p, schema: true, kind: 'persona', line: pp.line });
   }
+  // PNC's dedicated checking bonus page: one of pnc.com's most-cited pages in AI answers
+  const bonusAsk = t === 'checking' && /bonus|offer|promotion/i.test(prompt);
+  if (bonusAsk && T.bonusSrc) T.bonusSrc.forEach(b => src.push(Object.assign({}, b, { m: (b.m || []).map(x => x.slice()) })));
+  if (bonusAsk) src.push({ id: 'pncO', dom: 'pnc.com', path: '/personal-banking/banking/checking/bonus-offer.html', t: 'Checking Account Bonus Offer | PNC', type: 'owned', fmt: 'product', rel: .8, seo: .9, brand: 'pnc', schema: true, kind: 'offer', line: 'PNC lists its current checking bonus, how to qualify and the terms on its dedicated Bonus Offer page.' });
   if (i === 'txn') src.push({ id: 'pncL', dom: 'google.com', path: '/maps', t: `PNC Bank: ${T.localQ.replace('PNC ', '')}s near ${P.city}`, type: 'owned', fmt: 'local', rel: .62, seo: .78, brand: 'pnc', kind: 'local' });
 
   // fan-out query candidates
@@ -53,6 +57,7 @@ function buildScenario(t, p, i, L) {
     txn: [[`apply ${cat} online`, 'howto'], [`${nm('pnc')} apply`, 'entity'], [`what do I need to open a ${cat}`, 'howto'], [`${cat} offers November 2026`, 'freshness'], [`${T.localQ} near ${P.city}`, 'local'], [`best ${cat} to open now`, 'commercial']]
   }[i];
   if (p !== 'general') fq.splice(1, 0, [`${catP} for ${aud}`, 'persona'], [`${cat} tips for ${aud}`, 'persona']);
+  if (bonusAsk) fq.unshift(['PNC checking account bonus offer', 'entity'], ['checking account bonus offers this month', 'commercial']);
 
   // answer blocks
   const points = (T.points[seg] || T.points.default).map(([h, x]) => ({ b: null, h, t: x }));
@@ -135,7 +140,7 @@ function simulate(modelKey, t, p, i, seed, levers) {
   const extraction = cited.map(s => {
     const ex = [];
     if (s.type === 'owned' || s.type === 'competitor') {
-      if (s.brand && brandKeys.includes(s.brand)) ex.push({ b: s.brand, kind: 'fp', label: s.schemaOn ? 'Schema: product facts' : 'Page text', w: s.score * M.fp * (s.schemaOn ? 1.2 : 1) * (s.partial ? .8 : 1) * ({ article: .4, persona: .6, local: .8 }[s.kind] || 1) });
+      if (s.brand && brandKeys.includes(s.brand)) ex.push({ b: s.brand, kind: 'fp', label: s.schemaOn ? 'Schema: product facts' : 'Page text', w: s.score * M.fp * (s.schemaOn ? 1.2 : 1) * (s.partial ? .8 : 1) * ({ article: .4, persona: .6, local: .8, offer: .55 }[s.kind] || 1) });
     } else if (s.m && s.m.length) {
       s.m.forEach((x, idx) => {
         if (!brandKeys.includes(x[0])) return;
@@ -179,6 +184,8 @@ function simulate(modelKey, t, p, i, seed, levers) {
     const c = cite(ids);
     const o = Object.assign({}, it, { cites: c, memOnly: c.length === 0 });
     if (b === 'pnc' && personaPage) o.t = it.t + ' ' + personaPage.line;
+    const offerPage = cited.find(s => s.kind === 'offer');
+    if (b === 'pnc' && offerPage) { o.t = o.t + ' ' + offerPage.line; o.cta = 'See the bonus offer at pnc.com'; }
     return o;
   });
   const answer = { blocks, brandBlocks, steps: sc.steps, cols: sc.cols, verdict: '' };

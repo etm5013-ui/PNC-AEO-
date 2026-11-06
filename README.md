@@ -15,7 +15,7 @@ Open `index.html` in a browser (or share the single-file build in `dist/pnc-aeo-
    - **Scorecard:** whether PNC was named and at what position, PNC pages cited and where its facts came from, the 20-run mention rate, PNC's evidence mix, lever impact in points, and AEO actions.
    - **Speed:** 0.5×, 1×, 2×, Fast, or **Step by step**, which pauses after each retrieval step until you click *Next step* (or press →).
 2. **Presentation mode** (top bar or hero): a large, guided flow for a group. Pick a model, topic, persona and intent one screen at a time, run the prompt, then click *How did (model) arrive at this answer?* The card flips to a one-step-at-a-time retrieval walkthrough. Each step has its own lever panel showing what that lever changes at that step (e.g. "PNC pages readable: 2 of 3 → 3 of 3").
-3. **VS mode:** pick a shared topic and intent, then two sides (model + persona each). Both answers run side by side, with a "Behind the answer" summary for each and a "What changed" panel (PNC outcome, mention rate, queries, sources and brands unique to each side).
+3. **VS mode:** pick a shared topic and intent, then two sides, each with its own model, persona and AEO lever settings. Quick presets set up persona vs persona, model vs model, or one lever off vs on with everything else held constant. Both answers run side by side, with a "Behind the answer" summary for each and a "What changed" panel (PNC outcome, mention rate, queries, sources and brands unique to each side).
 4. **Schema lab**: one pnc.com page shown three ways (what the customer sees, the raw HTML, and the JSON-LD), plus a fact-extraction matrix for each model, before and after the schema rollout.
 5. **Variability**: a persona × intent heatmap for each model and topic, and a five-model comparison showing current vs. potential (all levers on).
 6. **How it works**: the seven steps, plus model profiles (SEO, affiliate, social and schema weights; memory; JavaScript rendering).
@@ -53,7 +53,7 @@ tools/fetch-favicons.js  re-downloads and embeds source-site favicons
 ```
 
 ## Accessibility
-Text in the demo modes and the main page is checked against WCAG AA contrast (4.5:1, or 3:1 for large text). White text sits on the darker PNC orange `#C25400` (4.6:1). The brand orange `#EF6A00` is kept for bars, borders and accents with no text on them.
+Text in the demo modes and the main page is checked against WCAG AA contrast (4.5:1, or 3:1 for large text). Buttons and highlights intentionally keep the PNC brand orange `#EF6A00` (white text on it is 3.1:1, an accepted exception).
 
 ## Caveats
 - **Simulated and illustrative.** Model behaviors are simplified from public documentation and commonly observed patterns, and they change often.

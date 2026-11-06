@@ -14,8 +14,18 @@
 const TEAM = {
   name: 'Digital Organic Growth Team',
   sub: 'SEO | AEO | Organic Content',
-  managers: ['Dimi Simovski', 'Eric Mayhue'],
-  members: ['Ray Judy', 'Brianca Hadnot', 'Joe Shepker', 'Alyssa Pugsley', 'Martha Summers', 'Laura Rupert']
+  managers: [
+    { n: 'Dimi Simovski', r: 'Group Manager', d: 'Leads the Digital Organic Growth team and sets PNC’s organic search and answer-engine strategy across lines of business.' },
+    { n: 'Eric Mayhue', r: 'Manager', d: 'Manages the team’s SEO and AEO roadmap, prioritization and partnerships with product, content and technology teams.' }
+  ],
+  members: [
+    { n: 'Ray Judy', r: 'Organic Content Strategy Lead', d: 'Leads organic content strategy, from persona-targeted guides to answer-first pages that models cite.' },
+    { n: 'Brianca Hadnot', r: 'AEO Strategy Lead', d: 'Leads answer engine optimization: how PNC shows up, gets cited and is described across AI assistants.' },
+    { n: 'Joe Shepker', r: 'Technical AEO / SEO Lead', d: 'Owns the technical foundation: crawlability, rendering, structured data and schema, and site performance.' },
+    { n: 'Alyssa Pugsley', r: 'Organic Content Strategy', d: 'Plans and optimizes organic content so pnc.com answers the questions customers ask, in their words.' },
+    { n: 'Martha Summers', r: 'Small Business SEO Strategy', d: 'Drives organic search and AEO strategy for PNC Small Business banking, lending and cash-flow products.' },
+    { n: 'Laura Rupert', r: 'C&IB / AMG SEO Strategy', d: 'Leads SEO strategy for Corporate & Institutional Banking and the Asset Management Group.' }
+  ]
 };
 
 /* ---------- Brands ----------
@@ -192,6 +202,12 @@ checking: {
   cat: { default: ['checking account', 'checking accounts'], student: ['student checking account', 'student checking accounts'], ema: ['premium checking account', 'premium checking accounts'], smb: ['business checking account', 'business checking accounts'] },
   feeword: 'fees and requirements', localQ: 'PNC branch',
   trustQ: 'checking account FDIC insurance and overdraft rules',
+  // extra sources the retriever finds when the prompt asks about a bonus
+  bonusSrc: [
+    { id: 'nwb', dom: 'nerdwallet.com', t: 'Best Bank Bonuses and Promotions: November 2026', type: 'affiliate', fmt: 'listicle', rel: .92, seo: .95, m: [['chase', 'Best overall bonus'], ['wf', 'Best for everyday checking'], ['pnc', 'Best bonus with budgeting tools'], ['capone', 'Best no-fee option']] },
+    { id: 'doc', dom: 'doctorofcredit.com', t: 'Best Bank Account Bonuses (Updated Weekly)', type: 'social', fmt: 'thread', rel: .78, seo: .82, m: [['chase', '+', 12, 'Chase’s checking bonus is still the easiest one to hit.'], ['wf', '~', 6, 'Wells Fargo’s bonus is fine but the direct deposit rules are fiddly.'], ['pnc', '+', 5, 'PNC’s checking bonus posted on time for me.']] },
+    { id: 'compB', dom: 'chase.com', path: '/personal/checking/coupon', t: 'Chase checking: new customer offer', type: 'competitor', fmt: 'product', rel: .9, seo: .92, brand: 'chase' }
+  ],
   cols: ['Monthly fee & waiver', 'Overdraft approach', 'Standout'],
   schemaType: 'BankAccount',
   faqQ: ['Is there a monthly service charge?', 'How does PNC help me avoid overdraft fees?'],
@@ -199,7 +215,7 @@ checking: {
   prompts: {
     info: ['What should I look for in a checking account, and how do overdraft fees work?', 'What should a college student look for in a checking account?', 'I just got my first real paycheck. What kind of checking account should I have now?', 'I’m saving for a down payment. Should my checking and savings be at the same bank as my mortgage?', 'Are premium checking accounts worth it if I keep a high balance?', 'Do I need a separate business checking account for my small business, and what should I look for?'],
     rec: ['What’s the best bank for everyday checking? I want a good app and no surprise fees.', 'What’s the best checking account for a college student with no fees?', 'What’s the best checking account for someone who just started their first job?', 'Which bank has the best checking account if I’m also planning to get a mortgage soon?', 'What’s the best premium checking account for a high earner who wants perks?', 'What’s the best business checking account for a small business with about 15 employees?'],
-    compare: ['PNC vs Chase vs Wells Fargo for checking: which is actually better?', 'PNC Virtual Wallet Student vs Chase College Checking vs Bank of America for a college student?', 'PNC Virtual Wallet vs Chase Total Checking vs Wells Fargo for my first real checking account?', 'PNC vs Chase vs Wells Fargo checking: which is best if I’ll also need a mortgage?', 'PNC Performance Select vs Chase Sapphire Banking vs Bank of America Preferred Rewards?', 'PNC Business Checking vs Chase Business Complete vs Bank of America Business Advantage?'],
+    compare: ['PNC vs Chase vs Wells Fargo for checking: which is actually better?', 'PNC Simple Checking vs Chase College Checking vs Bank of America for a college student?', 'PNC Virtual Wallet vs Chase Total Checking vs Wells Fargo for my first real checking account?', 'PNC vs Chase vs Wells Fargo checking: which is best if I’ll also need a mortgage?', 'PNC Performance Select vs Chase Sapphire Banking vs Bank of America Preferred Rewards?', 'PNC Business Checking vs Chase Business Complete vs Bank of America Business Advantage?'],
     txn: ['I want to open a checking account online today. Which one has a good bonus, and how do I apply?', 'How do I open a student checking account online today?', 'I want to open a checking account and set up direct deposit before my first paycheck. Where should I start?', 'I want to open a checking account at a bank that also does mortgages. Where should I apply?', 'I want to open a premium checking account and move about $150k over. Where should I start?', 'I need to open a business checking account this week for my LLC. What do I need and where?']
   },
   products: {
@@ -211,7 +227,7 @@ checking: {
       ally: ['Ally Spending Account', 'Online-only with no monthly fees and savings buckets.', 'None', 'CoverDraft', 'Savings buckets', 'you’re comfortable being fully digital']
     },
     student: {
-      pnc: ['PNC Virtual Wallet Student', 'No monthly service charge while you’re a student, savings and budgeting built in, and Low Cash Mode to help avoid overdraft fees.', 'None while you’re a student', 'Low Cash Mode: alerts plus extra time', 'Links easily to a parent’s PNC account', 'your family banks with PNC and you want budgeting built in'],
+      pnc: ['PNC Simple Checking', 'A straightforward checking account built for getting started, with PNC’s digital money tools and Low Cash Mode to help avoid overdraft fees.', 'See pnc.com for fee and waiver details', 'Low Cash Mode: alerts plus extra time', 'Simple setup; links easily to a parent’s PNC account', 'you want a simple first account and your family banks with PNC'],
       chase: ['Chase College Checking', 'No monthly fee for up to five years while enrolled, plus a big ATM network.', 'None for up to 5 years in school', 'Overdraft Assist', 'Big ATM network; student bonus', 'a sign-up bonus and ATM reach matter most'],
       boa: ['Bank of America Advantage SafeBalance', 'Fee waived for eligible students, and it can’t overdraw.', 'Waived for eligible students', 'No overdrafts (transactions decline)', 'Zero overdraft risk', 'you never want to risk overdrafting'],
       capone: ['Capital One 360 Checking', 'No fees at all and a top-rated app.', 'None', 'No overdraft fees', 'Fully fee-free', 'you don’t need branches'],
@@ -233,7 +249,7 @@ checking: {
   },
   pages: {
     default: { path: '/personal-banking/banking/checking/virtual-wallet', t: 'Virtual Wallet® | Checking + Savings' },
-    student: { path: '/personal-banking/banking/checking/virtual-wallet-student', t: 'Virtual Wallet® Student' },
+    student: { path: '/personal-banking/banking/checking/simple-checking.html', t: 'PNC Simple Checking' },
     ema: { path: '/personal-banking/banking/checking/virtual-wallet/performance-select', t: 'Virtual Wallet® with Performance Select', js: true },
     smb: { path: '/small-business/banking/business-checking', t: 'Business Checking Accounts | PNC' }
   },
@@ -270,8 +286,8 @@ checking: {
     student: [
       { id: 'nw', dom: 'nerdwallet.com', t: 'Best Student Checking Accounts', type: 'affiliate', fmt: 'listicle', rel: .9, seo: .95, m: [['capone', 'Best overall'], ['chase', 'Best for sign-up bonus'], ['discover', 'Best for cash back'], ['boa', 'Best for avoiding overdrafts']], boost: [2, 'Best for students with family at PNC'] },
       { id: 'cs', dom: 'cnbc.com', path: '/select', t: 'Best checking accounts for college students', type: 'affiliate', fmt: 'listicle', rel: .8, seo: .8, m: [['capone', 'Best overall'], ['discover', 'Best rewards'], ['chase', 'Best big bank'], ['pnc', 'Best for campus branches']] },
-      { id: 'rd', dom: 'reddit.com', path: '/r/college', t: 'What bank do you use in college?', type: 'social', fmt: 'thread', rel: .76, seo: .75, m: [['capone', '+', 11, 'Capital One. No fees and the app is clean.'], ['chase', '+', 7, 'Chase, there’s an ATM on every corner near campus.'], ['discover', '+', 4, 'Discover debit gives cash back lol'], ['pnc', '~', 3, 'PNC because my parents use it. It’s fine.']], boost: ['+', 9, 'PNC student account: no monthly fee and my parents can send money instantly.'] },
-      { id: 'tk', dom: 'tiktok.com', t: '“Bank accounts I wish I had in college”', type: 'social', fmt: 'video', rel: .55, seo: .4, m: [['capone', '+', 1, 'Capital One 360 is the no-fee GOAT.'], ['discover', '+', 1, 'Discover pays you cash back on your debit card.']], boost: ['+', 1, 'If your parents are at PNC, the student Virtual Wallet makes transfers instant.'] },
+      { id: 'rd', dom: 'reddit.com', path: '/r/college', t: 'What bank do you use in college?', type: 'social', fmt: 'thread', rel: .76, seo: .75, m: [['capone', '+', 11, 'Capital One. No fees and the app is clean.'], ['chase', '+', 7, 'Chase, there’s an ATM on every corner near campus.'], ['discover', '+', 4, 'Discover debit gives cash back lol'], ['pnc', '~', 3, 'PNC because my parents use it. It’s fine.']], boost: ['+', 9, 'PNC Simple Checking was easy to open and my parents can send money instantly.'] },
+      { id: 'tk', dom: 'tiktok.com', t: '“Bank accounts I wish I had in college”', type: 'social', fmt: 'video', rel: .55, seo: .4, m: [['capone', '+', 1, 'Capital One 360 is the no-fee GOAT.'], ['discover', '+', 1, 'Discover pays you cash back on your debit card.']], boost: ['+', 1, 'If your parents are at PNC, Simple Checking makes transfers instant.'] },
       { id: 'cfpb', dom: 'consumerfinance.gov', t: 'Choosing a college bank account', type: 'authority', fmt: 'explainer', rel: .82, seo: .7, m: [] },
       { id: 'comp', dom: 'chase.com', t: 'Chase College Checking℠', type: 'competitor', fmt: 'product', rel: .6, seo: .85, brand: 'chase' }
     ],
