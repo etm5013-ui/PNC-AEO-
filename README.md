@@ -57,6 +57,9 @@ tools/fetch-favicons.js  re-downloads and embeds source-site favicons
 ## Accessibility
 Text in the demo modes and the main page is checked against WCAG AA contrast (4.5:1, or 3:1 for large text). Buttons and highlights intentionally keep the PNC brand orange `#EF6A00` (white text on it is 3.1:1, an accepted exception).
 
+## Hosting
+The page carries `<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">` so search engines and AI crawlers that honor it won't index or cite it. Don't also block the page in robots.txt: crawlers that can't fetch the page never see the noindex tag. noindex is not access control, so put the page behind a login if it must stay private.
+
 ## Caveats
 - **Simulated and illustrative.** Model behaviors are simplified from public documentation and commonly observed patterns, and they change often.
 - PNC product details are for illustration and **must be validated with Product, Legal and Compliance** before external use.
